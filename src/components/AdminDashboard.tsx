@@ -1421,23 +1421,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
             <button
               onClick={async () => {
-                 storageService.saveProfile(storageService.getProfile());
-                 storageService.saveGallery(storageService.getGalleryItems());
-                 storageService.saveJournalPosts(storageService.getJournalPosts());
-                 storageService.saveTikTokReels(storageService.getTikTokReels());
-                 storageService.saveBookings(storageService.getBookings());
-                 storageService.saveTransactions(storageService.getTransactions());
-                 
-                 // Manually hit firestore for testimonials and waivers since we don't have bulk save functions for those
-                 const { doc, setDoc } = await import('firebase/firestore');
-                 const { db } = await import('../firebase');
-                 await setDoc(doc(db, 'testimonials', 'data'), { items: storageService.getTestimonials() }).catch(e => console.error(e));
-                 await setDoc(doc(db, 'waivers', 'data'), { items: storageService.getWaivers() }).catch(e => console.error(e));
-                 
-                 storageService.saveSplashScreenSettings(storageService.getSplashScreenSettings());
-                 showNotification('All local data successfully pushed to Firebase Cloud!');
+                 if (window.confirm("Are you sure you want to push all your local data to the Firebase Cloud? This will overwrite existing cloud data with your phone's current data.")) {
+                   try {
+                     storageService.saveProfile(storageService.getProfile());
+                     storageService.saveGallery(storageService.getGalleryItems());
+                     storageService.saveJournalPosts(storageService.getJournalPosts());
+                     storageService.saveTikTokReels(storageService.getTikTokReels());
+                     storageService.saveBookings(storageService.getBookings());
+                     storageService.saveTransactions(storageService.getTransactions());
+                     
+                     // Manually hit firestore for testimonials and waivers since we don't have bulk save functions for those
+                     const { doc, setDoc } = await import('firebase/firestore');
+                     const { db } = await import('../firebase');
+                     await setDoc(doc(db, 'testimonials', 'data'), { items: storageService.getTestimonials() }).catch(e => console.error(e));
+                     await setDoc(doc(db, 'waivers', 'data'), { items: storageService.getWaivers() }).catch(e => console.error(e));
+                     
+                     storageService.saveSplashScreenSettings(storageService.getSplashScreenSettings());
+                     showNotification('All local data successfully pushed to Firebase Cloud!');
+                   } catch (e) {
+                     console.error(e);
+                     showNotification('Error syncing data!');
+                   }
+                 }
               }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition active:scale-95 shadow-lg"
             >
               Push to Cloud Database
             </button>
