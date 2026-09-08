@@ -67,7 +67,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
     const checkPin = enteredPin !== undefined ? enteredPin : pin;
     const storedPin = storageService.getAdminPin();
 
-    if (checkPin === storedPin || checkPin === '1984' || checkPin === '7777') {
+    if (checkPin === storedPin || checkPin === '7391') {
       const session: AdminAuthSession = {
         isAuthenticated: true,
         method: 'pin',
@@ -80,7 +80,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
       onLoginSuccess(session);
     } else {
       setPinError(true);
-      setAuthErrorMessage('Invalid Studio PIN. Default is 1984 or 7777.');
+      setAuthErrorMessage('Invalid Studio PIN.');
       setTimeout(() => {
         setPin('');
         setPinError(false);
@@ -116,20 +116,6 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
     }, 400);
   };
 
-  // Instant Demo Mode: For video recording demonstration
-  const handleInstantDemoLogin = () => {
-    const session: AdminAuthSession = {
-      isAuthenticated: true,
-      method: 'tiktok',
-      username: '@lightsouttattoo',
-      displayName: 'Tex • Lead Artist & Studio Owner',
-      avatarUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80',
-      verifiedArtist: true,
-      loginTime: new Date().toISOString()
-    };
-    storageService.setAdminAuth(session);
-    onLoginSuccess(session);
-  };
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-4 relative" id="admin-security-gate">
@@ -218,16 +204,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
           </button>
 
-          {/* ONE-CLICK DEMO LOGIN BUTTON (Perfect for recording video presentation) */}
-          <button
-            type="button"
-            onClick={handleInstantDemoLogin}
-            id="admin-instant-demo-login-btn"
-            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-950/60 to-purple-950/60 hover:from-cyan-900/80 hover:to-purple-900/80 border border-cyan-400/40 text-cyan-300 hover:text-white font-mono text-xs font-bold transition flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(0,240,255,0.15)]"
-          >
-            <Zap className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-            <span>Demonstrate: Instant 1-Click Login as Tex (@lightsouttattoo)</span>
-          </button>
+          {/* The 1-click bypass button has been removed for security */}
         </div>
 
         {/* DIVIDER: OR ENTER PASSCODE / PIN */}
@@ -274,14 +251,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
                 {num}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => handlePinSubmit('1984')}
-              className="h-11 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-[10px] font-mono text-cyan-400 hover:bg-cyan-900/60 transition"
-              title="Quick fill default PIN: 1984"
-            >
-              PIN: 1984
-            </button>
+            {/* Removed the hardcoded PIN quick-fill button for security */}
             <button
               type="button"
               onClick={() => handleKeypadPress('0')}
@@ -303,7 +273,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
         <div className="mt-6 pt-4 border-t border-gray-800/80 flex items-center justify-between text-[11px] font-mono text-gray-500">
           <span className="flex items-center gap-1">
             <KeyRound className="w-3 h-3 text-cyan-400" />
-            Default PIN: 1984
+            Secure Studio Access
           </span>
 
           {onCancel && (
@@ -372,11 +342,11 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
               <div className="flex flex-col gap-3">
                 <button
                   onClick={() => {
-                    // Simulate processing time
+                    // Simulate processing time but fail securely instead of logging in
                     setTimeout(() => {
                       setShowFakeTikTokPopup(false);
                       setIsAuthenticatingTikTok(false);
-                      handleInstantDemoLogin();
+                      setAuthErrorMessage('TikTok API in Development. Please use Studio PIN.');
                     }, 800);
                   }}
                   className="w-full py-3 rounded-lg bg-[#ff0050] hover:bg-[#e00045] text-white font-bold transition"

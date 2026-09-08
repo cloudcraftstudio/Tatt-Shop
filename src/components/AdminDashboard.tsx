@@ -23,6 +23,7 @@ import {
   Camera,
   Calendar as CalendarIcon,
   Zap,
+  Smartphone,
   DollarSign,
   Video,
   Eye,
@@ -56,6 +57,8 @@ interface AdminDashboardProps {
   onUpdateProfile: (profile: ArtistProfile) => void;
   onRefreshData: () => void;
   onSplashSettingsUpdated?: (settings: SplashScreenSettings) => void;
+  onOpenApkModal?: () => void;
+  onTriggerSplash?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -65,7 +68,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   posts,
   onUpdateProfile,
   onRefreshData,
-  onSplashSettingsUpdated
+  onSplashSettingsUpdated,
+  onOpenApkModal,
+  onTriggerSplash
 }) => {
   const [authSession, setAuthSession] = useState<AdminAuthSession>(() => storageService.getAdminAuth());
   const [activeTab, setActiveTab] = useState<'gallery' | 'bookings' | 'calendar' | 'pos' | 'tiktok' | 'livestudio' | 'splash' | 'profile' | 'journal' | 'backup'>('gallery');
@@ -383,6 +388,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
               <span>PIN Mode (Tex)</span>
             </div>
+          )}
+
+          {/* Matrix Splash & Android APK Quick Tools (Tex Only) */}
+          {onTriggerSplash && (
+            <button
+              type="button"
+              onClick={onTriggerSplash}
+              className="px-2.5 py-1.5 rounded-xl bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 font-mono text-xs transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+              title="Test Matrix Live Splash Screen"
+            >
+              <Zap className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Matrix Splash</span>
+            </button>
+          )}
+
+          {onOpenApkModal && (
+            <button
+              type="button"
+              onClick={onOpenApkModal}
+              className="px-2.5 py-1.5 rounded-xl bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 font-mono text-xs transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+              title="Android APK & Gradle Setup Guide"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Android Gradle</span>
+            </button>
           )}
 
           <button
@@ -1377,6 +1407,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
         </form>
       )}
+
+      
+          {/* Cloud Sync Tool */}
+          <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-500/30 space-y-2">
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-cyan-400" />
+              Force Push Local Data to Firebase Cloud
+            </h4>
+            <p className="text-xs text-gray-400 font-mono mb-2">
+              Run this once to push all your existing local data (from your Chromebook) up into the newly connected Firebase Cloud Database.
+            </p>
+            <button
+              onClick={() => {
+                 storageService.saveProfile(storageService.getProfile());
+                 storageService.saveGallery(storageService.getGalleryItems());
+                 storageService.saveJournalPosts(storageService.getJournalPosts());
+                 storageService.saveTikTokReels(storageService.getTikTokReels());
+                 storageService.saveBookings(storageService.getBookings());
+                 storageService.saveTransactions(storageService.getTransactions());
+                 
+                 
+                 storageService.saveSplashScreenSettings(storageService.getSplashScreenSettings());
+                 showNotification('All local data successfully pushed to Firebase Cloud!');
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition"
+            >
+              Push to Cloud Database
+            </button>
+          </div>
 
       {/* --- TAB 4: CHROMEBOOK SAFE BACKUP & RESET --- */}
       {activeTab === 'backup' && (

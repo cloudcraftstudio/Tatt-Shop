@@ -16,13 +16,11 @@ import { ArtistProfile } from '../types';
 interface HeroSectionProps {
   profile: ArtistProfile;
   onNavigate: (tab: string) => void;
-  onOpenPhotoModal?: () => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   profile,
-  onNavigate,
-  onOpenPhotoModal
+  onNavigate
 }) => {
   return (
     <section className="relative pt-4 pb-8 px-4 sm:px-6 overflow-hidden">
@@ -75,18 +73,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     <span>$100 / HR</span>
                   </div>
 
-                  {/* Quick Change Photo Button for Tex */}
-                  {onOpenPhotoModal && (
-                    <button
-                      onClick={onOpenPhotoModal}
-                      className="absolute top-10 right-2 px-2 py-1 rounded-lg bg-cyan-950/90 hover:bg-cyan-900 border border-cyan-400/60 text-cyan-300 font-mono text-[10px] flex items-center gap-1 shadow-lg transition backdrop-blur-md"
-                      title="Put my image in the studio"
-                    >
-                      <Camera className="w-3 h-3 text-cyan-400" />
-                      <span>Change Photo</span>
-                    </button>
-                  )}
-
                   {/* Bottom Portrait Caption */}
                   <div className="absolute bottom-3 left-3 right-3 p-2.5 rounded-lg bg-black/80 backdrop-blur-md border border-cyan-500/30 text-left">
                     <div className="flex items-center justify-between">
@@ -105,16 +91,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </div>
             </div>
 
-            {/* Direct 1-Click Action for Tex below portrait */}
-            {onOpenPhotoModal && (
-              <button
-                onClick={onOpenPhotoModal}
-                className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-400/40 text-cyan-300 text-xs font-mono transition"
-              >
-                <Camera className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Put My Image in Studio (Upload / Link)</span>
-              </button>
-            )}
+            {/* Profile Wall Navigation Shortcut */}
+            <button
+              onClick={() => onNavigate('journal')}
+              className="mt-3 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-400/40 text-cyan-300 text-xs font-mono transition shadow-[0_0_12px_rgba(0,240,255,0.15)]"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Tex's Profile Wall & Updates</span>
+              <ArrowRight className="w-3 h-3 text-cyan-400" />
+            </button>
           </div>
 
           {/* Hero Content & Bold Bio */}

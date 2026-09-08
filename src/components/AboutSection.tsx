@@ -19,13 +19,11 @@ import { BustedLightbulbIcon } from './BustedLightbulbIcon';
 interface AboutSectionProps {
   profile: ArtistProfile;
   onBookNow: () => void;
-  onOpenPhotoModal?: () => void;
 }
 
 export const AboutSection: React.FC<AboutSectionProps> = ({
   profile,
-  onBookNow,
-  onOpenPhotoModal
+  onBookNow
 }) => {
   return (
     <section className="py-8 px-4 sm:px-6 max-w-5xl mx-auto" id="about-section">
@@ -55,17 +53,6 @@ export const AboutSection: React.FC<AboutSectionProps> = ({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
-            {/* Quick Photo Upload Trigger */}
-            {onOpenPhotoModal && (
-              <button
-                onClick={onOpenPhotoModal}
-                className="absolute top-3 right-3 px-2.5 py-1.5 rounded-xl bg-black/80 hover:bg-cyan-950 border border-cyan-400 text-cyan-300 text-xs font-mono flex items-center gap-1.5 transition shadow-lg"
-              >
-                <Camera className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Change Photo</span>
-              </button>
-            )}
-
             <div className="absolute bottom-3 left-3 right-3 text-left">
               <div className="flex items-center gap-2">
                 <BustedLightbulbIcon size={24} glow={true} />
@@ -78,16 +65,6 @@ export const AboutSection: React.FC<AboutSectionProps> = ({
               </p>
             </div>
           </div>
-
-          {onOpenPhotoModal && (
-            <button
-              onClick={onOpenPhotoModal}
-              className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-400/40 text-cyan-300 text-xs font-mono transition"
-            >
-              <Camera className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Put My Image in the Studio</span>
-            </button>
-          )}
         </div>
 
         {/* Right: Artist Story & Credentials */}

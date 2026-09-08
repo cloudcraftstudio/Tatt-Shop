@@ -8,24 +8,37 @@ import {
   PlusCircle,
   X,
   Share2,
-  Sparkles
+  Sparkles,
+  Phone,
+  CalendarCheck,
+  Check,
+  Copy,
+  ShieldCheck,
+  Award
 } from 'lucide-react';
-import { JournalPost } from '../types';
+import { JournalPost, ArtistProfile } from '../types';
 import { ShareJournalToTikTokModal } from './ShareJournalToTikTokModal';
 
 interface JournalSectionProps {
   posts: JournalPost[];
+  profile?: ArtistProfile;
+  isAdmin?: boolean;
   onOpenAdminNewPost: () => void;
+  onNavigate?: (tab: string) => void;
   onShowNotification?: (msg: string) => void;
 }
 
 export const JournalSection: React.FC<JournalSectionProps> = ({
   posts,
+  profile,
+  isAdmin = false,
   onOpenAdminNewPost,
+  onNavigate,
   onShowNotification
 }) => {
   const [selectedPost, setSelectedPost] = useState<JournalPost | null>(null);
   const [sharingPost, setSharingPost] = useState<JournalPost | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Keyboard shortcut: Escape key closes article reader
   useEffect(() => {
@@ -38,34 +51,136 @@ export const JournalSection: React.FC<JournalSectionProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedPost]);
 
+  const handleShareArticle = (post: JournalPost) => {
+    if (navigator.share) {
+      navigator.share({
+        title: `${post.title} | Lights Out Tattoo`,
+        text: post.excerpt,
+        url: window.location.href
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(`${window.location.origin} - ${post.title}`);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+      if (onShowNotification) onShowNotification('Article link copied to clipboard!');
+    }
+  };
+
   return (
-    <section className="py-8 px-4 sm:px-6 max-w-5xl mx-auto" id="journal-section">
+    <section className="py-6 px-3 sm:px-6 max-w-5xl mx-auto space-y-8" id="journal-section">
+      {/* Top Navigation */}
+      {onNavigate && (
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => onNavigate('home')}
+            className="text-xs font-mono text-cyan-400 hover:underline flex items-center gap-1.5"
+          >
+            <span>←</span>
+            <span>Back to Studio Overview</span>
+          </button>
+          <span className="text-[11px] font-mono text-gray-500">
+            Winchester, VA • High Voltage Ink
+          </span>
+        </div>
+      )}
+
+      {/* Tex's Profile Wall Hero Card */}
+      {profile && (
+        <div className="rounded-2xl bg-gradient-to-r from-cyan-950/50 via-[#080d1a] to-blue-950/40 border-2 border-cyan-400/40 shadow-[0_0_30px_rgba(0,240,255,0.15)] p-5 sm:p-7 text-left">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+            {/* Portrait */}
+            <div className="relative shrink-0">
+              <img
+                src={profile.avatarUrl}
+                alt={profile.artistName}
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 border-cyan-400 shadow-[0_0_20px_rgba(0,240,255,0.4)]"
+              />
+              <div className="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-400 text-cyan-300 font-mono text-[10px] font-black">
+                {profile.experienceYears}+ YRS
+              </div>
+            </div>
+
+            {/* Profile Info */}
+            <div className="flex-1 space-y-2 text-center sm:text-left">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <h1 className="font-heading font-black text-2xl sm:text-3xl text-white">
+                  {profile.artistName}
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-mono text-xs font-bold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Lead Artist & Studio Founder</span>
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm text-cyan-300 font-medium">
+                Winchester, Virginia • Black & Grey Realism • No-Laser Cover-Ups
+              </p>
+
+              <p className="text-xs text-gray-300 leading-relaxed max-w-2xl">
+                {profile.bio}
+              </p>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-wrap items-center justify-center sm:justify-start gap-3">
+                {onNavigate && (
+                  <button
+                    onClick={() => onNavigate('booking')}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-black font-heading font-black text-xs hover:brightness-110 transition shadow-md flex items-center gap-1.5"
+                  >
+                    <CalendarCheck className="w-3.5 h-3.5" />
+                    <span>Book Custom Piece (-15% Promo)</span>
+                  </button>
+                )}
+                <a
+                  href={`tel:${profile.phone.replace(/[^0-9]/g, '')}`}
+                  className="px-3.5 py-2 rounded-xl bg-black/60 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-bold hover:bg-cyan-950 transition flex items-center gap-1.5"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>Call {profile.phone}</span>
+                </a>
+                {onNavigate && (
+                  <button
+                    onClick={() => onNavigate('gallery')}
+                    className="px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 text-gray-300 font-mono text-xs hover:text-white transition"
+                  >
+                    View 80+ Tattoos
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-left">
         <div>
           <div className="flex items-center gap-2 text-cyan-400 font-tech font-bold text-xs uppercase tracking-widest">
             <BookOpen className="w-4 h-4 text-cyan-400" />
-            <span>Tex's Studio Journal & Insights</span>
+            <span>Tex's Profile Wall & Studio Journal</span>
           </div>
           <h2 className="font-heading text-2xl sm:text-3xl font-black text-white mt-1">
-            ARTIST <span className="text-cyan-400">JOURNAL & ARTICLES</span>
+            ARTIST <span className="text-cyan-400">ARTICLES & UPDATES</span>
           </h2>
           <p className="text-xs sm:text-sm text-gray-300 mt-0.5">
             Technical notes on cover-up science, black & grey needle depth, and tattoo culture from 20+ years in the chair.
           </p>
         </div>
 
-        <button
-          onClick={onOpenAdminNewPost}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-950/70 border border-cyan-400/40 text-cyan-300 hover:bg-cyan-900/80 text-xs font-mono font-bold transition shadow-[0_0_10px_rgba(0,240,255,0.2)]"
-        >
-          <PlusCircle className="w-4 h-4 text-cyan-400" />
-          <span>Write Post (Admin)</span>
-        </button>
+        {/* Admin-only post writing button */}
+        {isAdmin && (
+          <button
+            onClick={onOpenAdminNewPost}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-950/70 border border-cyan-400/40 text-cyan-300 hover:bg-cyan-900/80 text-xs font-mono font-bold transition shadow-[0_0_10px_rgba(0,240,255,0.2)] shrink-0"
+          >
+            <PlusCircle className="w-4 h-4 text-cyan-400" />
+            <span>Write Post (Admin)</span>
+          </button>
+        )}
       </div>
 
       {/* Post Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-left">
         {posts.map(post => (
           <article
             key={post.id}
@@ -122,13 +237,26 @@ export const JournalSection: React.FC<JournalSectionProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSharingPost(post);
+                      if (isAdmin) {
+                        setSharingPost(post);
+                      } else {
+                        handleShareArticle(post);
+                      }
                     }}
                     className="p-1.5 rounded-lg bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 hover:bg-cyan-900 transition flex items-center gap-1 text-[11px] font-bold"
-                    title="Share straight to TikTok profile"
+                    title={isAdmin ? "Share to TikTok" : "Share Article"}
                   >
-                    <i className="fa-brands fa-tiktok text-xs"></i>
-                    <span className="hidden sm:inline">TikTok</span>
+                    {isAdmin ? (
+                      <>
+                        <i className="fa-brands fa-tiktok text-xs"></i>
+                        <span className="hidden sm:inline">TikTok</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-3 h-3" />
+                        <span className="hidden sm:inline">Share</span>
+                      </>
+                    )}
                   </button>
                   <span className="flex items-center gap-1 font-bold group-hover:translate-x-1 transition-transform">
                     <span>Read</span>
@@ -237,21 +365,32 @@ export const JournalSection: React.FC<JournalSectionProps> = ({
                 ← Back / Close Article
               </button>
 
-              <button
-                type="button"
-                onClick={() => setSharingPost(selectedPost)}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-heading font-black text-xs hover:brightness-110 transition shadow-[0_0_15px_rgba(0,240,255,0.4)] flex items-center justify-center gap-2 order-1 sm:order-2 shrink-0"
-              >
-                <i className="fa-brands fa-tiktok text-sm"></i>
-                <span>SHARE TO TIKTOK PROFILE</span>
-              </button>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setSharingPost(selectedPost)}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-heading font-black text-xs hover:brightness-110 transition shadow-[0_0_15px_rgba(0,240,255,0.4)] flex items-center justify-center gap-2 order-1 sm:order-2 shrink-0"
+                >
+                  <i className="fa-brands fa-tiktok text-sm"></i>
+                  <span>SHARE TO TIKTOK PROFILE</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleShareArticle(selectedPost)}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-cyan-950 border border-cyan-400/50 text-cyan-300 hover:bg-cyan-900 font-mono text-xs font-bold transition flex items-center justify-center gap-2 order-1 sm:order-2 shrink-0"
+                >
+                  {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+                  <span>{copiedLink ? 'Link Copied!' : 'Share This Article'}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Share Journal Post to TikTok Modal */}
-      {sharingPost && (
+      {/* Share Journal Post to TikTok Modal (Admin Only) */}
+      {sharingPost && isAdmin && (
         <ShareJournalToTikTokModal
           isOpen={Boolean(sharingPost)}
           onClose={() => setSharingPost(null)}
@@ -262,3 +401,4 @@ export const JournalSection: React.FC<JournalSectionProps> = ({
     </section>
   );
 };
+

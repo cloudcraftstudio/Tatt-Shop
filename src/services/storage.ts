@@ -1,3 +1,5 @@
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 import { ArtistProfile, Booking, GalleryItem, Post, JournalPost, Testimonial, TikTokReel, PaymentTransaction, SessionRecordingWaiver, SplashScreenSettings, AdminAuthSession } from '../types';
 import { initialBookings, initialGallery, initialPosts, initialJournalPosts, initialProfile, initialTestimonials, initialTikTokReels, initialTransactions } from '../data/initialData';
 import { defaultSplashSettings } from '../data/splashData';
@@ -18,6 +20,36 @@ const KEYS = {
   SPLASH_SEEN: 'lot_splash_seen_v1'
 };
 
+
+export const setupFirestoreSync = (callback: (data: any) => void) => {
+  const collections = ['profile', 'gallery', 'posts', 'journal', 'reels', 'bookings', 'transactions', 'testimonials', 'waivers', 'splash'];
+  collections.forEach(col => {
+    onSnapshot(doc(db, col, 'data'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.items) {
+          localStorage.setItem('lot_' + (col === 'splash' ? 'splash_settings' : col) + '_v1', JSON.stringify(data.items));
+        } else {
+          localStorage.setItem('lot_' + col + '_v1', JSON.stringify(data));
+        }
+        callback(col); // trigger react updates
+      }
+    });
+  });
+};
+
+const saveToFirestore = async (col: string, data: any) => {
+  try {
+    if (Array.isArray(data)) {
+      await setDoc(doc(db, col, 'data'), { items: data });
+    } else {
+      await setDoc(doc(db, col, 'data'), data);
+    }
+  } catch (e) {
+    console.error('Firestore save failed', e);
+  }
+};
+
 export const storageService = {
   // Profile
   getProfile(): ArtistProfile {
@@ -32,6 +64,7 @@ export const storageService = {
   saveProfile(profile: ArtistProfile): void {
     try {
       localStorage.setItem(KEYS.PROFILE, JSON.stringify(profile));
+      saveToFirestore("profile", profile);
     } catch (e) {
       console.warn('Local storage write failed', e);
     }
@@ -58,6 +91,7 @@ export const storageService = {
   saveGallery(gallery: GalleryItem[]): void {
     try {
       localStorage.setItem(KEYS.GALLERY, JSON.stringify(gallery));
+      saveToFirestore("gallery", gallery);
     } catch (e) {
       console.warn('Storage error on gallery save', e);
     }
@@ -110,6 +144,7 @@ export const storageService = {
   savePosts(posts: Post[]): void {
     try {
       localStorage.setItem(KEYS.POSTS, JSON.stringify(posts));
+      saveToFirestore("posts", posts);
     } catch (e) {
       console.warn('Storage error on posts save', e);
     }
@@ -176,6 +211,7 @@ export const storageService = {
   saveJournalPosts(posts: JournalPost[]): void {
     try {
       localStorage.setItem(KEYS.JOURNAL, JSON.stringify(posts));
+      saveToFirestore("journal", posts);
     } catch (e) {
       console.warn('Storage error on journal save', e);
     }
@@ -198,6 +234,7 @@ export const storageService = {
   saveTikTokReels(reels: TikTokReel[]): void {
     try {
       localStorage.setItem(KEYS.REELS, JSON.stringify(reels));
+      saveToFirestore("reels", reels);
     } catch (e) {
       console.warn('Storage error on reels save', e);
     }
@@ -245,6 +282,7 @@ export const storageService = {
   saveBookings(bookings: Booking[]): void {
     try {
       localStorage.setItem(KEYS.BOOKINGS, JSON.stringify(bookings));
+      saveToFirestore("bookings", bookings);
     } catch (e) {
       console.warn('Storage error on bookings save', e);
     }
@@ -319,6 +357,7 @@ export const storageService = {
   saveTransactions(transactions: PaymentTransaction[]): void {
     try {
       localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(transactions));
+      saveToFirestore("transactions", transactions);
     } catch (e) {
       console.warn('Storage error on transactions save', e);
     }
@@ -378,6 +417,7 @@ export const storageService = {
     const updated = [newTest, ...tests];
     try {
       localStorage.setItem(KEYS.TESTIMONIALS, JSON.stringify(updated));
+      saveToFirestore("testimonials", updated);
     } catch (e) {
       console.warn(e);
     }
@@ -468,6 +508,7 @@ export const storageService = {
         updated = [waiver, ...current];
       }
       localStorage.setItem(KEYS.WAIVERS, JSON.stringify(updated));
+      saveToFirestore("waivers", updated);
     } catch (e) {
       console.warn('Failed to save waiver', e);
     }
@@ -478,6 +519,7 @@ export const storageService = {
       const current = this.getWaivers();
       const updated = current.filter(w => w.id !== id);
       localStorage.setItem(KEYS.WAIVERS, JSON.stringify(updated));
+      saveToFirestore("waivers", updated);
     } catch (e) {
       console.warn('Failed to delete waiver', e);
     }
@@ -513,6 +555,7 @@ export const storageService = {
   saveSplashScreenSettings(settings: SplashScreenSettings): void {
     try {
       localStorage.setItem(KEYS.SPLASH, JSON.stringify(settings));
+      saveToFirestore("splash", settings);
     } catch (e) {
       console.warn('Failed to save splash screen settings', e);
     }

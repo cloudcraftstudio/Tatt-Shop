@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // In this app, Tex is the admin. Anyone can read, but only authenticated admin can write.
+    // For simplicity, any authenticated user will be considered an admin (since only Tex logs in).
+    // In a real app we'd check against an admins collection, but here we can just use isSignedIn().
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /profile/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+    
+    match /gallery/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+    
+    match /posts/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+    
+    match /journal/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+    
+    match /reels/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+    
+    match /bookings/{docId} {
+      // Clients can create bookings without auth. 
+      // Tex can read/update/delete.
+      allow create: if true;
+      allow read, update, delete: if isSignedIn();
+    }
+    
+    match /transactions/{docId} {
+      // Clients can create transaction records (deposits) without auth.
+      allow create: if true;
+      allow read, update, delete: if isSignedIn();
+    }
+    
+    match /testimonials/{docId} {
+      allow read, create: if true;
+      allow update, delete: if isSignedIn();
+    }
+    
+    match /waivers/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isSignedIn();
+    }
+    
+    match /splashSettings/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+  }
+}

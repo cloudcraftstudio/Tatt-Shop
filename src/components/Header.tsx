@@ -1,6 +1,6 @@
 import React from 'react';
 import { BustedLightbulbIcon } from './BustedLightbulbIcon';
-import { Phone, MapPin, Sparkles, Camera } from 'lucide-react';
+import { Phone, MapPin, Sparkles } from 'lucide-react';
 import { ArtistProfile } from '../types';
 
 interface HeaderProps {
@@ -8,15 +8,13 @@ interface HeaderProps {
   onOpenMenu: () => void;
   onNavigate: (tab: string) => void;
   activeTab: string;
-  onOpenPhotoModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   profile,
   onOpenMenu,
   onNavigate,
-  activeTab,
-  onOpenPhotoModal
+  activeTab
 }) => {
   return (
     <header
@@ -67,23 +65,18 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="md:hidden font-mono text-[10px] sm:text-[11px]">Call</span>
           </a>
 
-          {/* Quick Avatar / Photo Update Button */}
-          {onOpenPhotoModal && (
-            <button
-              onClick={onOpenPhotoModal}
-              title="Put my image in the studio (Update Tex Portrait)"
-              className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden border border-cyan-400/80 shadow-[0_0_10px_rgba(0,240,255,0.4)] group shrink-0 hover:scale-105 transition"
-            >
-              <img
-                src={profile.avatarUrl}
-                alt="Tex - Lead Artist"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-cyan-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                <Camera className="w-3 h-3 text-cyan-300" />
-              </div>
-            </button>
-          )}
+          {/* Quick Avatar Profile Button */}
+          <button
+            onClick={() => onNavigate('journal')}
+            title="View Tex's Profile Wall & Studio Journal"
+            className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden border border-cyan-400/80 shadow-[0_0_10px_rgba(0,240,255,0.4)] group shrink-0 hover:scale-105 transition"
+          >
+            <img
+              src={profile.avatarUrl}
+              alt="Tex - Lead Artist"
+              className="w-full h-full object-cover"
+            />
+          </button>
 
           {/* Booking Shortcut Button */}
           <button

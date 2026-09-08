@@ -17,11 +17,12 @@ import { AboutSection } from './components/AboutSection';
 import { AndroidApkModal } from './components/AndroidApkModal';
 import { StudioPhotoModal } from './components/StudioPhotoModal';
 import { AdminPosTab } from './components/AdminPosTab';
+import { ClientCashAppPayPortal } from './components/ClientCashAppPayPortal';
 import { TikTokStudioRecorder } from './components/TikTokStudioRecorder';
 import { BustedLightbulbIcon } from './components/BustedLightbulbIcon';
 import { FAQSection } from './components/FAQSection';
 import { MatrixSplashScreen } from './components/MatrixSplashScreen';
-import { storageService } from './services/storage';
+import { storageService, setupFirestoreSync } from './services/storage';
 import {
   ArtistProfile,
   Booking,
@@ -39,6 +40,7 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => storageService.getAdminAuth().isAuthenticated);
 
   // Splash Screen State
   const [splashSettings, setSplashSettings] = useState<SplashScreenSettings>(() => storageService.getSplashScreenSettings());
@@ -70,7 +72,16 @@ export default function App() {
   } | null>(null);
 
   // Synchronize state from storage
+  
+  useEffect(() => {
+    setupFirestoreSync((col) => {
+      // Trigger a state update whenever Firestore pushes new data
+      refreshAllData();
+    });
+  }, []);
+
   const refreshAllData = () => {
+    setIsAdmin(storageService.getAdminAuth().isAuthenticated);
     setProfile(storageService.getProfile());
     setGalleryItems(storageService.getGalleryItems());
     setBookings(storageService.getBookings());
@@ -81,6 +92,7 @@ export default function App() {
 
   // Scroll to top on tab switch
   const handleNavigate = (tab: string) => {
+    setIsAdmin(storageService.getAdminAuth().isAuthenticated);
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -148,10 +160,12 @@ export default function App() {
       {/* Sticky Studio Header with Phone & Busted Lightbulb Mobile Menu Icon */}
       <Header
         profile={profile}
-        onOpenMenu={() => setIsMenuOpen(true)}
+        onOpenMenu={() => {
+          setIsAdmin(storageService.getAdminAuth().isAuthenticated);
+          setIsMenuOpen(true);
+        }}
         onNavigate={handleNavigate}
         activeTab={activeTab}
-        onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
       />
 
       {/* Main App Content Viewport with bottom appbar padding */}
@@ -162,7 +176,6 @@ export default function App() {
             <HeroSection
               profile={profile}
               onNavigate={handleNavigate}
-              onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
             />
 
             {/* Quick Pricing Estimator Teaser */}
@@ -323,6 +336,9 @@ export default function App() {
         {activeTab === 'journal' && (
           <JournalSection
             posts={posts}
+            profile={profile}
+            isAdmin={storageService.getAdminAuth().isAuthenticated}
+            onNavigate={handleNavigate}
             onOpenAdminNewPost={() => handleNavigate('admin')}
             onShowNotification={msg => {
               console.log(msg);
@@ -345,7 +361,6 @@ export default function App() {
           <AboutSection
             profile={profile}
             onBookNow={() => handleNavigate('booking')}
-            onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
           />
         )}
 
@@ -359,33 +374,57 @@ export default function App() {
             onUpdateProfile={newProf => setProfile(newProf)}
             onRefreshData={refreshAllData}
             onSplashSettingsUpdated={newSettings => setSplashSettings(newSettings)}
+            onOpenApkModal={() => setIsApkModalOpen(true)}
+            onTriggerSplash={() => setShowSplash(true)}
           />
         )}
 
-        {/* Dedicated Cash App POS Register Screen */}
+        {/* Dedicated Cash App POS / Client Pay Portal Screen */}
         {activeTab === 'pos' && (
           <div className="py-6 px-3 sm:px-6 max-w-6xl mx-auto space-y-4">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => handleNavigate('home')}
-                className="text-xs font-mono text-cyan-400 hover:underline flex items-center gap-1"
-              >
-                ← Back to Studio
-              </button>
-              <button
-                onClick={() => handleNavigate('admin')}
-                className="text-xs font-mono text-gray-400 hover:text-white"
-              >
-                Open Admin Dashboard
-              </button>
-            </div>
-            <AdminPosTab
-              profile={profile}
-              bookings={bookings}
-              onUpdateProfile={newProf => setProfile(newProf)}
-              onRefreshData={refreshAllData}
-              onShowNotification={msg => console.log(msg)}
-            />
+            {/* If user is verified admin, allow toggling between studio register and client pay view */}
+            {storageService.getAdminAuth().isAuthenticated ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleNavigate('home')}
+                      className="text-xs font-mono text-cyan-400 hover:underline flex items-center gap-1"
+                    >
+                      ← Back to Studio
+                    </button>
+                    <span className="text-gray-600">•</span>
+                    <span className="text-xs font-mono text-emerald-400 font-bold">
+                      Tex Admin Verified
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleNavigate('admin')}
+                      className="text-xs font-mono text-gray-300 hover:text-white px-2 py-1"
+                    >
+                      Admin Dashboard
+                    </button>
+                  </div>
+                </div>
+
+                <AdminPosTab
+                  profile={profile}
+                  bookings={bookings}
+                  onUpdateProfile={newProf => setProfile(newProf)}
+                  onRefreshData={refreshAllData}
+                  onShowNotification={msg => console.log(msg)}
+                />
+              </div>
+            ) : (
+              /* Public / Client Facing View: Pure Client Pay Portal - ZERO financial totals, ZERO POS registers */
+              <ClientCashAppPayPortal
+                profile={profile}
+                onAdminUnlock={() => handleNavigate('admin')}
+                onNavigate={handleNavigate}
+              />
+            )}
           </div>
         )}
 
@@ -406,16 +445,16 @@ export default function App() {
       </main>
 
       {/* Bottom Locked Appbar for Mobile Precision */}
-      <BottomAppBar activeTab={activeTab} onNavigate={handleNavigate} />
+      <BottomAppBar activeTab={activeTab} isAdmin={isAdmin} onNavigate={handleNavigate} />
 
       {/* Mobile Drawer (Triggered by Top Right Busted Lightbulb) */}
       <MobileDrawer
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         profile={profile}
+        isAdmin={isAdmin}
         onNavigate={handleNavigate}
         onOpenApkModal={() => setIsApkModalOpen(true)}
-        onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
         onTriggerSplash={() => setShowSplash(true)}
       />
 

@@ -22,9 +22,9 @@ interface MobileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   profile: ArtistProfile;
+  isAdmin?: boolean;
   onNavigate: (tab: string) => void;
   onOpenApkModal: () => void;
-  onOpenPhotoModal?: () => void;
   onTriggerSplash?: () => void;
 }
 
@@ -32,9 +32,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   isOpen,
   onClose,
   profile,
+  isAdmin = false,
   onNavigate,
   onOpenApkModal,
-  onOpenPhotoModal,
   onTriggerSplash
 }) => {
   if (!isOpen) return null;
@@ -76,33 +76,30 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           </button>
         </div>
 
-        {/* Tex Quick Profile Card - shrink-0 ensures avatar & text never get cut off */}
-        <div className="p-3.5 mx-3 my-3 rounded-xl bg-cyan-950/40 border border-cyan-500/40 relative shrink-0 shadow-[0_0_15px_rgba(0,240,255,0.15)]">
+        {/* Tex Quick Profile Card - Tapping opens Tex's Profile Wall & Bio */}
+        <button
+          onClick={() => handleNav('journal')}
+          className="p-3.5 mx-3 my-3 rounded-xl bg-cyan-950/40 border border-cyan-500/40 relative shrink-0 shadow-[0_0_15px_rgba(0,240,255,0.15)] text-left hover:bg-cyan-900/40 hover:border-cyan-400 transition group block"
+          title="View Tex's Profile Wall & Articles"
+        >
           <div className="flex items-center gap-3">
             <div className="relative shrink-0">
               <img
                 src={profile.avatarUrl}
                 alt={profile.artistName}
-                className="w-13 h-13 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-cyan-400 shadow-[0_0_12px_rgba(0,240,255,0.4)] block shrink-0"
+                className="w-13 h-13 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-cyan-400 shadow-[0_0_12px_rgba(0,240,255,0.4)] block shrink-0 group-hover:scale-105 transition-transform"
                 style={{ minWidth: '3.25rem', minHeight: '3.25rem' }}
               />
-              {onOpenPhotoModal && (
-                <button
-                  onClick={() => {
-                    onClose();
-                    onOpenPhotoModal();
-                  }}
-                  title="Update Tex Portrait"
-                  className="absolute -bottom-1 -right-1 p-1 rounded-full bg-cyan-950 border border-cyan-400 text-cyan-300 hover:bg-cyan-800 transition shadow-[0_0_6px_rgba(0,240,255,0.6)]"
-                >
-                  <Camera className="w-3 h-3" />
-                </button>
-              )}
+              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-cyan-950 border border-cyan-400 text-[9px] font-mono font-bold text-cyan-300">
+                WALL
+              </span>
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-1">
-                <h3 className="font-heading font-bold text-sm text-white truncate">{profile.artistName}</h3>
+                <h3 className="font-heading font-bold text-sm text-white truncate group-hover:text-cyan-300 transition-colors">
+                  {profile.artistName}
+                </h3>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shrink-0">
                   {profile.experienceYears}+ Yrs
                 </span>
@@ -116,7 +113,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Navigation Shortcuts List */}
         <div className="px-3 py-2 space-y-1 font-medium text-sm flex-1 shrink-0">
@@ -130,6 +127,19 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           >
             <Flame className="w-4 h-4 text-cyan-400" />
             <span>Studio Overview & Bio</span>
+          </button>
+
+          <button
+            onClick={() => handleNav('journal')}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left hover:bg-cyan-950/50 hover:text-cyan-300 border border-transparent hover:border-cyan-500/30 transition"
+          >
+            <div className="flex items-center gap-3">
+              <BookOpen className="w-4 h-4 text-cyan-400" />
+              <span>Tex's Profile Wall & Journal</span>
+            </div>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-900/60 text-cyan-300 border border-cyan-500/30">
+              Articles
+            </span>
           </button>
 
           <button
@@ -159,6 +169,21 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           </button>
 
           <button
+            onClick={() => handleNav('pos')}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left bg-emerald-950/40 hover:bg-emerald-950/70 text-emerald-300 border border-emerald-500/40 transition"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full bg-[#00D632] text-black font-heading font-black text-xs flex items-center justify-center shadow-[0_0_8px_#00D632]">
+                $
+              </div>
+              <span className="font-heading font-bold text-xs tracking-wide">Pay Deposit via Cash App</span>
+            </div>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-900/60 text-[#00D632] font-bold">
+              {profile.cashAppHandle || '$LightsOutTattooTex'}
+            </span>
+          </button>
+
+          <button
             onClick={() => handleNav('map')}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left hover:bg-cyan-950/50 hover:text-cyan-300 border border-transparent hover:border-cyan-500/30 transition"
           >
@@ -178,27 +203,6 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           </button>
 
           <button
-            onClick={() => handleNav('tiktok-studio')}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left bg-gradient-to-r from-cyan-950/60 to-purple-950/60 text-cyan-300 border border-cyan-400/40 hover:border-cyan-400 transition shadow-[0_0_12px_rgba(0,240,255,0.15)]"
-          >
-            <div className="flex items-center gap-3">
-              <Camera className="w-4 h-4 text-cyan-400 animate-pulse" />
-              <span className="font-bold text-xs">TikTok Live Studio & Waivers</span>
-            </div>
-            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500 text-white font-bold">
-              REC
-            </span>
-          </button>
-
-          <button
-            onClick={() => handleNav('journal')}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-cyan-950/50 hover:text-cyan-300 border border-transparent hover:border-cyan-500/30 transition"
-          >
-            <BookOpen className="w-4 h-4 text-cyan-400" />
-            <span>Tex's Profile Wall & Updates</span>
-          </button>
-
-          <button
             onClick={() => handleNav('testimonials')}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-cyan-950/50 hover:text-cyan-300 border border-transparent hover:border-cyan-500/30 transition"
           >
@@ -214,67 +218,94 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             <span>About Artist Tex</span>
           </button>
 
-          <button
-            onClick={() => handleNav('pos')}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left bg-emerald-950/40 hover:bg-emerald-950/70 text-emerald-300 border border-emerald-500/40 transition"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 rounded-full bg-[#00D632] text-black font-heading font-black text-xs flex items-center justify-center shadow-[0_0_8px_#00D632]">
-                $
-              </div>
-              <span className="font-heading font-bold text-xs tracking-wide">Cash App POS & Pay Portal</span>
-            </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-900/60 text-[#00D632] font-bold">
-              {profile.cashAppHandle || '$LightsOutTattooTex'}
-            </span>
-          </button>
+          {/* Client-Facing Navigation Items End */}
 
-          <button
-            onClick={() => handleNav('admin')}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left hover:bg-blue-950/50 text-gray-300 hover:text-cyan-300 border border-transparent hover:border-cyan-500/30 transition"
-          >
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-4 h-4 text-blue-400" />
-              <span>Admin Studio Dashboard</span>
-            </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-300">
-              Tex Mode
-            </span>
-          </button>
-
-          {onTriggerSplash && (
-            <button
-              onClick={() => {
-                onClose();
-                onTriggerSplash();
-              }}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left bg-cyan-950/40 hover:bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 transition group shadow-[0_0_10px_rgba(0,240,255,0.15)]"
-            >
-              <div className="flex items-center gap-3">
-                <Zap className="w-4 h-4 text-cyan-400 group-hover:animate-pulse" />
-                <span className="text-xs font-semibold">Matrix Live Splash Screen</span>
+          {/* If Tex / Admin is Authenticated, Show Exclusive Owner Tools */}
+          {isAdmin ? (
+            <div className="pt-3 mt-1 border-t border-cyan-500/30 space-y-1.5">
+              <div className="px-3 py-1 flex items-center justify-between text-[10px] font-mono text-cyan-400 font-bold uppercase tracking-wider bg-cyan-950/40 rounded-lg border border-cyan-500/20">
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Owner Tools (Tex Only)</span>
+                </div>
+                <span className="text-emerald-400 font-bold">● Active</span>
               </div>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-900/60 text-cyan-300 border border-cyan-400/40">
-                REPLAY
-              </span>
-            </button>
+
+              {onTriggerSplash && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onTriggerSplash();
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left bg-cyan-950/40 hover:bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 transition group shadow-[0_0_10px_rgba(0,240,255,0.15)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <Zap className="w-4 h-4 text-cyan-400 group-hover:animate-pulse" />
+                    <span className="text-xs font-semibold">Matrix Live Splash Screen</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-900/60 text-cyan-300 border border-cyan-400/40">
+                    REPLAY
+                  </span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenApkModal();
+                }}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left bg-gradient-to-r from-cyan-950/60 to-blue-950/60 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <Smartphone className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-semibold">Android APK & Gradle Setup</span>
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+              </button>
+
+              <button
+                onClick={() => handleNav('tiktok-studio')}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left bg-gradient-to-r from-cyan-950/60 to-purple-950/60 text-cyan-300 border border-cyan-400/40 hover:border-cyan-400 transition shadow-[0_0_12px_rgba(0,240,255,0.15)]"
+              >
+                <div className="flex items-center gap-3">
+                  <Camera className="w-4 h-4 text-cyan-400 animate-pulse" />
+                  <span className="font-bold text-xs">TikTok Live Studio & Waivers</span>
+                </div>
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500 text-white font-bold">
+                  REC
+                </span>
+              </button>
+
+              <button
+                onClick={() => handleNav('admin')}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left bg-blue-950/50 hover:bg-blue-900/60 text-cyan-300 border border-blue-500/40 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                  <span className="font-bold text-xs">Admin Studio Dashboard</span>
+                </div>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                  TEX MODE
+                </span>
+              </button>
+            </div>
+          ) : (
+            /* Public / Client Facing View: Subtle Studio Admin Link for Tex to unlock */
+            <div className="pt-2 border-t border-gray-800/80">
+              <button
+                onClick={() => handleNav('admin')}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-gray-400 hover:text-cyan-300 hover:bg-gray-900/60 transition text-xs font-mono group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                  <span>Studio Admin Portal</span>
+                </div>
+                <span className="text-[10px] text-gray-500 border border-gray-800 px-1.5 py-0.5 rounded bg-black/40">
+                  PIN Required
+                </span>
+              </button>
+            </div>
           )}
-
-          <div className="pt-2 border-t border-gray-800">
-            <button
-              onClick={() => {
-                onClose();
-                onOpenApkModal();
-              }}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left bg-gradient-to-r from-cyan-950/60 to-blue-950/60 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 transition"
-            >
-              <div className="flex items-center gap-3">
-                <Smartphone className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-semibold">Android APK & Gradle Setup</span>
-              </div>
-              <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
-            </button>
-          </div>
         </div>
 
         {/* Direct Contact Footer */}

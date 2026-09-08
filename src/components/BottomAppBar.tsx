@@ -11,11 +11,13 @@ import {
 
 interface BottomAppBarProps {
   activeTab: string;
+  isAdmin?: boolean;
   onNavigate: (tab: string) => void;
 }
 
 export const BottomAppBar: React.FC<BottomAppBarProps> = ({
   activeTab,
+  isAdmin = false,
   onNavigate
 }) => {
   const tabs = [
@@ -25,7 +27,7 @@ export const BottomAppBar: React.FC<BottomAppBarProps> = ({
     { id: 'map', label: '100mi Map', icon: MapPin },
     { id: 'reels', label: 'Reels', icon: Video },
     { id: 'journal', label: 'Journal', icon: BookOpen },
-    { id: 'admin', label: 'Admin', icon: ShieldCheck }
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: ShieldCheck }] : [])
   ];
 
   return (
