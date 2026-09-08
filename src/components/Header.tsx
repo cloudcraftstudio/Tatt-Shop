@@ -1,6 +1,6 @@
 import React from 'react';
 import { BustedLightbulbIcon } from './BustedLightbulbIcon';
-import { Phone, MapPin, Sparkles } from 'lucide-react';
+import { Phone, MapPin, Sparkles, Droplets } from 'lucide-react';
 import { ArtistProfile } from '../types';
 
 interface HeaderProps {
@@ -8,13 +8,17 @@ interface HeaderProps {
   onOpenMenu: () => void;
   onNavigate: (tab: string) => void;
   activeTab: string;
+  isBlackAndGreyMode: boolean;
+  onToggleMode: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   profile,
   onOpenMenu,
   onNavigate,
-  activeTab
+  activeTab,
+  isBlackAndGreyMode,
+  onToggleMode
 }) => {
   return (
     <header
@@ -53,6 +57,16 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          
+          {/* Black & Grey Mode Toggle */}
+          <button
+            onClick={onToggleMode}
+            title={isBlackAndGreyMode ? "Turn Lights On (Color Mode)" : "Turn Lights Out (Black & Grey Mode)"}
+            className="p-1.5 sm:p-2 rounded-xl bg-gray-900 border border-gray-700 hover:border-gray-500 hover:bg-gray-800 transition active:scale-95 group shrink-0 flex items-center justify-center"
+          >
+            <Droplets className={`w-4 h-4 sm:w-5 sm:h-5 ${isBlackAndGreyMode ? 'text-gray-400' : 'text-gray-500 group-hover:text-gray-300'}`} />
+          </button>
+
           {/* Quick Call Phone Button */}
           <a
             href={`tel:${profile.phone.replace(/[^0-9]/g, '')}`}

@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const firebaseConfig = {
   projectId: "gen-lang-client-0448860491",
@@ -13,3 +14,13 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, "ai-studio-lightsouttattoo-90b14bb6-c7cf-4eb6-b802-d3995a38347e");
+export const auth = getAuth(app);
+
+export const authenticateAdminSilently = async () => {
+  try {
+    await signInAnonymously(auth);
+    console.log("Firebase silently authenticated.");
+  } catch (error) {
+    console.error("Firebase auth error:", error);
+  }
+};

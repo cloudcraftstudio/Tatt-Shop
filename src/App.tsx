@@ -23,6 +23,7 @@ import { BustedLightbulbIcon } from './components/BustedLightbulbIcon';
 import { FAQSection } from './components/FAQSection';
 import { MatrixSplashScreen } from './components/MatrixSplashScreen';
 import { storageService, setupFirestoreSync } from './services/storage';
+import { authenticateAdminSilently } from './firebase';
 import {
   ArtistProfile,
   Booking,
@@ -41,6 +42,16 @@ export default function App() {
   const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(() => storageService.getAdminAuth().isAuthenticated);
+  const [isBlackAndGreyMode, setIsBlackAndGreyMode] = useState<boolean>(() => localStorage.getItem('lot_bg_mode') === 'true');
+
+  const toggleBlackAndGreyMode = () => {
+    setIsBlackAndGreyMode(prev => {
+      const next = !prev;
+      localStorage.setItem('lot_bg_mode', String(next));
+      return next;
+    });
+  };
+
 
   // Splash Screen State
   const [splashSettings, setSplashSettings] = useState<SplashScreenSettings>(() => storageService.getSplashScreenSettings());
@@ -73,8 +84,15 @@ export default function App() {
 
   // Synchronize state from storage
   
+
   useEffect(() => {
+    // If they refresh the page and are already considered admin locally, we need to make sure Firebase is also authenticated
+    if (storageService.getAdminAuth().isAuthenticated) {
+      authenticateAdminSilently();
+    }
+    
     setupFirestoreSync((col) => {
+
       // Trigger a state update whenever Firestore pushes new data
       refreshAllData();
     });
@@ -135,7 +153,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#04060c] text-gray-100 font-sans relative overflow-x-clip selection:bg-cyan-500 selection:text-black">
+    <div className={`min-h-screen bg-[#04060c] text-gray-100 font-sans relative overflow-x-clip selection:bg-cyan-500 selection:text-black ${isBlackAndGreyMode ? 'grayscale contrast-125 brightness-90' : ''}`}>
       {/* Animated Matrix Cyberpunk Live Splash Screen */}
       <AnimatePresence>
         {showSplash && (
@@ -166,6 +184,8 @@ export default function App() {
         }}
         onNavigate={handleNavigate}
         activeTab={activeTab}
+        isBlackAndGreyMode={isBlackAndGreyMode}
+        onToggleMode={toggleBlackAndGreyMode}
       />
 
       {/* Main App Content Viewport with bottom appbar padding */}
