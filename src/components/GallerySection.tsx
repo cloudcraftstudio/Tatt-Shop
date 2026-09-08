@@ -161,9 +161,9 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-          {filteredItems.map(item => (
+          {filteredItems.map((item, index) => (
             <div
-              key={item.id}
+              key={`${item.id}-${index}`}
               onClick={() => setActiveLightboxItem(item)}
               className="group relative rounded-xl bg-[#080d1a] border border-cyan-500/25 overflow-hidden shadow-lg hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(0,240,255,0.25)] transition-all duration-300 cursor-pointer flex flex-col"
               id={`gallery-item-${item.id}`}
@@ -228,9 +228,9 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-cyan-500/15">
-                  {item.tags.slice(0, 3).map(tag => (
+                  {(item.tags || []).slice(0, 3).map((tag, index) => (
                     <span
-                      key={tag}
+                      key={`${tag}-${index}`}
                       className="text-[10px] font-mono text-cyan-400/80 bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-500/20"
                     >
                       #{tag}

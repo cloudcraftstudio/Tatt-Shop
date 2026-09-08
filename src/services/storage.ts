@@ -29,7 +29,29 @@ export const setupFirestoreSync = (callback: (data: any) => void) => {
     onSnapshot(
       collection(db, col),
       (snapshot) => {
-        const items = snapshot.docs.map(doc => doc.data());
+        let items = snapshot.docs.map(doc => {
+          const data = doc.data();
+          data._docId = doc.id;
+          return data;
+        });
+
+        // Flatten old '{ items: [...] }' documents if they exist
+        const oldDataDoc = items.find(item => item._docId === 'data');
+        if (oldDataDoc && Array.isArray(oldDataDoc.items)) {
+          const individualItems = items.filter(item => item._docId !== 'data');
+          items = [...individualItems, ...oldDataDoc.items];
+        }
+
+        // Clean up _docId
+        items = items.map(item => {
+          const { _docId, ...rest } = item;
+          // Ensure arrays exist for things that might have been lost
+          if (col === 'gallery' || col === 'posts' || col === 'journal') {
+            if (!rest.tags) rest.tags = [];
+          }
+          return rest;
+        });
+
         // Always write to local storage so it syncs deletions/empty states too
         // Only ignore if the cloud is perfectly empty AND we already have initial data (prevent wiping defaults on first load ever)
         const existingData = localStorage.getItem('lot_' + col + '_v1');
@@ -96,7 +118,11 @@ export const storageService = {
   getProfile(): ArtistProfile {
     try {
       const data = localStorage.getItem(KEYS.PROFILE);
-      return data ? JSON.parse(data) : initialProfile;
+      if (data) {
+        const parsed = JSON.parse(data);
+        return { ...initialProfile, ...parsed, specialties: parsed.specialties || initialProfile.specialties };
+      }
+      return initialProfile;
     } catch {
       return initialProfile;
     }
@@ -119,7 +145,12 @@ export const storageService = {
         localStorage.setItem(KEYS.GALLERY, JSON.stringify(initialGallery));
         return initialGallery;
       }
-      return JSON.parse(data);
+      
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      return [];
+
     } catch {
       return initialGallery;
     }
@@ -177,7 +208,12 @@ export const storageService = {
         localStorage.setItem(KEYS.POSTS, JSON.stringify(initialPosts));
         return initialPosts;
       }
-      return JSON.parse(data);
+      
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      return [];
+
     } catch {
       return initialPosts;
     }
@@ -245,7 +281,12 @@ export const storageService = {
         localStorage.setItem(KEYS.JOURNAL, JSON.stringify(initialJournalPosts));
         return initialJournalPosts;
       }
-      return JSON.parse(data);
+      
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      return [];
+
     } catch {
       return initialJournalPosts;
     }
@@ -268,7 +309,12 @@ export const storageService = {
         localStorage.setItem(KEYS.REELS, JSON.stringify(initialTikTokReels));
         return initialTikTokReels;
       }
-      return JSON.parse(data);
+      
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      return [];
+
     } catch {
       return initialTikTokReels;
     }
@@ -316,7 +362,12 @@ export const storageService = {
         localStorage.setItem(KEYS.BOOKINGS, JSON.stringify(initialBookings));
         return initialBookings;
       }
-      return JSON.parse(data);
+      
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      return [];
+
     } catch {
       return initialBookings;
     }
@@ -392,7 +443,12 @@ export const storageService = {
         localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(initialTransactions));
         return initialTransactions;
       }
-      return JSON.parse(data);
+      
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      return [];
+
     } catch {
       return initialTransactions;
     }
@@ -436,7 +492,12 @@ export const storageService = {
         localStorage.setItem(KEYS.TESTIMONIALS, JSON.stringify(initialTestimonials));
         return initialTestimonials;
       }
-      return JSON.parse(data);
+      
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      return [];
+
     } catch {
       return initialTestimonials;
     }
@@ -553,7 +614,6 @@ export const storageService = {
       }
       localStorage.setItem(KEYS.WAIVERS, JSON.stringify(updated));
       saveToFirestore("waivers", updated);
-      deleteFromFirestore("waivers", id);
     } catch (e) {
       console.warn('Failed to save waiver', e);
     }
@@ -565,7 +625,7 @@ export const storageService = {
       const updated = current.filter(w => w.id !== id);
       localStorage.setItem(KEYS.WAIVERS, JSON.stringify(updated));
       saveToFirestore("waivers", updated);
-      deleteFromFirestore("waivers", id);
+      
     } catch (e) {
       console.warn('Failed to delete waiver', e);
     }
@@ -621,9 +681,12 @@ export const storageService = {
         localStorage.setItem(KEYS.SPLASH, JSON.stringify(defaultSplashSettings));
         return defaultSplashSettings;
       }
+      const parsed = JSON.parse(data);
       return {
         ...defaultSplashSettings,
-        ...JSON.parse(data)
+        ...parsed,
+        scenes: parsed.scenes || defaultSplashSettings.scenes,
+        showcasePhotos: parsed.showcasePhotos || defaultSplashSettings.showcasePhotos
       };
     } catch {
       return defaultSplashSettings;
@@ -661,7 +724,9 @@ export const storageService = {
     try {
       const data = localStorage.getItem(KEYS.ADMIN_AUTH);
       if (data) {
+        
         return JSON.parse(data);
+
       }
     } catch {
       // ignore

@@ -37,19 +37,19 @@ export const TestimonialSlider: React.FC<TestimonialSliderProps> = ({
   useEffect(() => {
     if (!isAutoPlaying || testimonials.length <= 1) return;
     const interval = setInterval(() => {
-      setCurrentIndex(prev => (prev + 1) % testimonials.length);
+      if (!testimonials || testimonials.length === 0) return; setCurrentIndex(prev => (prev + 1) % testimonials.length);
     }, 5000);
     return () => clearInterval(interval);
   }, [isAutoPlaying, testimonials.length]);
 
   const handlePrev = () => {
     setIsAutoPlaying(false);
-    setCurrentIndex(prev => (prev === 0 ? testimonials.length - 1 : prev - 1));
+    if (!testimonials || testimonials.length === 0) return; setCurrentIndex(prev => (prev === 0 ? testimonials.length - 1 : prev - 1));
   };
 
   const handleNext = () => {
     setIsAutoPlaying(false);
-    setCurrentIndex(prev => (prev + 1) % testimonials.length);
+    if (!testimonials || testimonials.length === 0) return; setCurrentIndex(prev => (prev + 1) % testimonials.length);
   };
 
   const handleAddReview = (e: React.FormEvent) => {
@@ -77,7 +77,7 @@ export const TestimonialSlider: React.FC<TestimonialSliderProps> = ({
     }, 1800);
   };
 
-  const current = testimonials[currentIndex] || testimonials[0];
+  const current = testimonials && testimonials.length > 0 ? (testimonials[currentIndex] || testimonials[0]) : null;
 
   return (
     <section className="py-8 px-4 sm:px-6 max-w-5xl mx-auto" id="testimonial-section">
@@ -127,7 +127,7 @@ export const TestimonialSlider: React.FC<TestimonialSliderProps> = ({
                   />
                 ) : (
                   <span className="font-heading font-black text-2xl text-cyan-300">
-                    {current.clientName.charAt(0)}
+                    {(current?.clientName || 'A').charAt(0)}
                   </span>
                 )}
               </div>

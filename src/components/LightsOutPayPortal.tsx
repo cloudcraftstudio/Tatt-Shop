@@ -50,7 +50,7 @@ export const LightsOutPayPortal: React.FC<LightsOutPayPortalProps> = ({
   const [clientEmail, setClientEmail] = useState<string>(initialBooking?.email || '');
   const [note, setNote] = useState<string>(
     initialBooking
-      ? `Deposit for ${initialBooking.tattooIdea.slice(0, 35)} (${initialBooking.id})`
+      ? `Deposit for ${(initialBooking.tattooIdea || '').slice(0, 35)} (${initialBooking.id})`
       : 'Tattoo Session Deposit'
   );
 
@@ -137,7 +137,7 @@ export const LightsOutPayPortal: React.FC<LightsOutPayPortalProps> = ({
       setClientName(initialBooking.clientName);
       setClientPhone(initialBooking.phone);
       setClientEmail(initialBooking.email || '');
-      setNote(`Deposit for ${initialBooking.tattooIdea.slice(0, 35)} (${initialBooking.id})`);
+      setNote(`Deposit for ${(initialBooking.tattooIdea || '').slice(0, 35)} (${initialBooking.id})`);
     }
     if (initialAmount) {
       setAmountStr(initialAmount.toString());

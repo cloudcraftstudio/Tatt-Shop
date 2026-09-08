@@ -223,7 +223,7 @@ export default function App() {
 
             {/* Featured Portfolio Highlights */}
             <GallerySection
-              items={galleryItems.slice(0, 8)}
+              items={(galleryItems || []).slice(0, 8)}
               onOpenAdminUpload={() => handleNavigate('admin')}
               onBookSimilar={handleBookSimilarFromGallery}
             />

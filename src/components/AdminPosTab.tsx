@@ -302,7 +302,7 @@ export const AdminPosTab: React.FC<AdminPosTabProps> = ({
                       {b.clientName}
                     </span>
                     <span className="text-[10px] text-gray-400 font-mono truncate block">
-                      {b.tattooIdea.slice(0, 24)}...
+                      {(b.tattooIdea || '').slice(0, 24)}...
                     </span>
                   </div>
                   <button

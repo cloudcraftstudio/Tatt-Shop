@@ -226,7 +226,7 @@ export const JournalSection: React.FC<JournalSectionProps> = ({
 
               <div className="flex items-center justify-between pt-3 border-t border-cyan-500/15 text-xs font-mono text-cyan-400">
                 <div className="flex flex-wrap gap-1">
-                  {post.tags.slice(0, 2).map(tag => (
+                  {(post.tags || []).slice(0, 2).map(tag => (
                     <span key={tag} className="text-[10px] text-gray-400">
                       #{tag}
                     </span>

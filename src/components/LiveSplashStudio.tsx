@@ -657,7 +657,7 @@ export const LiveSplashStudio: React.FC<LiveSplashStudioProps> = ({
                   QUICK ADD FROM EXISTING PORTFOLIO:
                 </span>
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                  {galleryItems.slice(0, 10).map(item => (
+                  {(galleryItems || []).slice(0, 10).map(item => (
                     <button
                       key={item.id}
                       type="button"
