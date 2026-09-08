@@ -35,6 +35,7 @@ import {
   GalleryItem,
   JournalPost,
   ArtCategoryKey,
+  TattooCategoryKey,
   AdminAuthSession,
   SplashScreenSettings
 } from '../types';
@@ -98,7 +99,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // --- GALLERY FORM STATE ---
   const [newTitle, setNewTitle] = useState('');
-  const [newCategory, setNewCategory] = useState<ArtCategoryKey>('realism');
+  const [newCategory, setNewCategory] = useState<TattooCategoryKey>('realism');
   const [newDesc, setNewDesc] = useState('');
   const [newPlacement, setNewPlacement] = useState('Forearm');
   const [newSessionHours, setNewSessionHours] = useState(4);

@@ -1,5 +1,4 @@
-export type ArtCategoryKey =
-  | 'all'
+export type TattooCategoryKey =
   | 'realism'
   | 'coverups'
   | 'portraits'
@@ -7,10 +6,12 @@ export type ArtCategoryKey =
   | 'machines'
   | 'biomech';
 
+export type ArtCategoryKey = 'all' | TattooCategoryKey;
+
 export interface GalleryItem {
   id: string;
   title: string;
-  category: 'realism' | 'coverups' | 'portraits' | 'dark_neo' | 'machines' | 'biomech';
+  category: TattooCategoryKey;
   categoryLabel: string;
   imageUrl: string;
   beforeImageUrl?: string; // For cover-ups before/after comparison

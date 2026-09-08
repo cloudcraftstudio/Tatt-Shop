@@ -9,7 +9,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { storageService } from '../services/storage';
-import { ArtCategoryKey, GalleryItem } from '../types';
+import { ArtCategoryKey, TattooCategoryKey, GalleryItem } from '../types';
 
 interface BulkGalleryUploadModalProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ interface StagedImage {
   id: string;
   dataUrl: string;
   title: string;
-  category: ArtCategoryKey;
+  category: TattooCategoryKey;
   isCoverUp: boolean;
 }
 
@@ -31,7 +31,7 @@ export const BulkGalleryUploadModal: React.FC<BulkGalleryUploadModalProps> = ({
   onGalleryUpdated
 }) => {
   const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
-  const [defaultCategory, setDefaultCategory] = useState<ArtCategoryKey>('realism');
+  const [defaultCategory, setDefaultCategory] = useState<TattooCategoryKey>('realism');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [successCount, setSuccessCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
