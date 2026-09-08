@@ -39,7 +39,7 @@ export const ClientCashAppPayPortal: React.FC<ClientCashAppPayPortalProps> = ({
   const [paymentReported, setPaymentReported] = useState(false);
 
   // Clean Cashtag without leading '$' for URL formation
-  const rawCashtag = (profile.cashAppHandle || '$LightsOutTattooTex').replace(/^\$/, '');
+  const rawCashtag = (profile.cashAppHandle || '$texxx360').replace(/^\$/, '');
   const displayCashtag = `$${rawCashtag}`;
 
   // Current amount
@@ -210,10 +210,10 @@ export const ClientCashAppPayPortal: React.FC<ClientCashAppPayPortalProps> = ({
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {[
-                  { amount: 50, label: '$50 Consultation Hold' },
-                  { amount: 100, label: '$100 Small Piece Deposit' },
-                  { amount: 200, label: '$200 Half-Day (Popular)' },
-                  { amount: 300, label: '$300 Full-Day Custom' }
+                  { amount: 50, label: 'Drawing Fee' },
+                  { amount: 100, label: 'Standard Appointment Deposit' },
+                  { amount: 200, label: 'Half-Day Session Deposit' },
+                  { amount: 300, label: 'Full-Day Custom Deposit' }
                 ].map(tier => {
                   const isSelected = selectedPreset === tier.amount;
                   return (

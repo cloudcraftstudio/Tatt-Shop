@@ -223,7 +223,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                     LOCK YOUR SPOT INSTANTLY
                   </h4>
                   <p className="text-[11px] text-emerald-300 font-mono">
-                    Pay via Studio Cash App ({profile.cashAppHandle || '$LightsOutTattooTex'}) or POS
+                    Pay via Studio Cash App ({profile.cashAppHandle || '$texxx360'}) or POS
                   </p>
                 </div>
               </div>

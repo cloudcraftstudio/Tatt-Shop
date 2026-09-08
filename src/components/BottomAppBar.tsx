@@ -32,7 +32,7 @@ export const BottomAppBar: React.FC<BottomAppBarProps> = ({
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 bg-[#060913]/95 backdrop-blur-lg border-t border-cyan-500/25 px-1 py-1.5 shadow-[0_-8px_25px_rgba(0,240,255,0.15)] pb-[max(0.375rem,env(safe-area-inset-bottom))]"
+      className="fixed bottom-0 left-0 right-0 z-[100] bg-[#060913]/95 backdrop-blur-lg border-t border-cyan-500/25 px-1 py-1.5 shadow-[0_-8px_25px_rgba(0,240,255,0.15)] pb-[max(0.375rem,env(safe-area-inset-bottom))]"
       id="bottom-locked-appbar"
     >
       <div className="max-w-xl mx-auto flex items-center justify-around">

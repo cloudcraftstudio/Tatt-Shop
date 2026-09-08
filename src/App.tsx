@@ -1,3 +1,5 @@
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { PWAPrompt } from './components/PWAPrompt';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HighVoltageBackground } from './components/HighVoltageBackground';
@@ -53,11 +55,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (isBlackAndGreyMode) {
-      document.body.classList.add('grayscale', 'contrast-125', 'brightness-90');
-    } else {
-      document.body.classList.remove('grayscale', 'contrast-125', 'brightness-90');
-    }
+    // We removed body class application because CSS filters break fixed positioning
+    document.body.classList.remove('grayscale', 'contrast-125', 'brightness-90');
   }, [isBlackAndGreyMode]);
 
 
@@ -197,7 +196,8 @@ export default function App() {
       />
 
       {/* Main App Content Viewport with bottom appbar padding */}
-      <main className="relative z-10 pb-24">
+      <PWAPrompt />
+      <main className={`relative z-10 pb-24 ${isBlackAndGreyMode ? 'grayscale contrast-125 brightness-90' : ''}`}>
         {activeTab === 'home' && (
           <>
             {/* Badass Hero Section with Tex's Portrait & Bold Bio */}
@@ -208,6 +208,7 @@ export default function App() {
 
             {/* Quick Pricing Estimator Teaser */}
             <div className="max-w-6xl mx-auto px-4 sm:px-6 my-4">
+              <PWAInstallButton />
               <PricingEstimator
                 profile={profile}
                 onProceedToBook={handleProceedFromEstimator}
@@ -449,8 +450,9 @@ export default function App() {
               /* Public / Client Facing View: Pure Client Pay Portal - ZERO financial totals, ZERO POS registers */
               <ClientCashAppPayPortal
                 profile={profile}
-                onAdminUnlock={() => handleNavigate('admin')}
-                onNavigate={handleNavigate}
+                onBackToStudio={() => handleNavigate('home')}
+                onUnlockAdminPos={() => handleNavigate('admin')}
+                isAdmin={isAdmin}
               />
             )}
           </div>

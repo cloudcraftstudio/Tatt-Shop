@@ -22,31 +22,72 @@ const KEYS = {
 
 
 export const setupFirestoreSync = (callback: (data: any) => void) => {
-  const collections = ['profile', 'gallery', 'posts', 'journal', 'reels', 'bookings', 'transactions', 'testimonials', 'waivers', 'splash'];
-  collections.forEach(col => {
-    onSnapshot(doc(db, col, 'data'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.items) {
-          localStorage.setItem('lot_' + (col === 'splash' ? 'splash_settings' : col) + '_v1', JSON.stringify(data.items));
+  const arrayCollections = ['gallery', 'posts', 'journal', 'reels', 'bookings', 'transactions', 'testimonials', 'waivers'];
+  const objectCollections = ['profile', 'splash'];
+
+  const setupArrayListener = (col: string) => {
+    onSnapshot(
+      collection(db, col),
+      (snapshot) => {
+        const items = snapshot.docs.map(doc => doc.data());
+        // Always write to local storage so it syncs deletions/empty states too
+        // Only ignore if the cloud is perfectly empty AND we already have initial data (prevent wiping defaults on first load ever)
+        const existingData = localStorage.getItem('lot_' + col + '_v1');
+        if (items.length === 0 && (!existingData || existingData.includes('initial'))) {
+           // don't overwrite defaults with empty cloud if it's the first run
         } else {
-          localStorage.setItem('lot_' + col + '_v1', JSON.stringify(data));
+           localStorage.setItem('lot_' + col + '_v1', JSON.stringify(items));
+           callback(col);
         }
-        callback(col); // trigger react updates
-      }
-    });
-  });
+      },
+      (error) => { console.error("Sync error:", error); }
+    );
+  };
+
+  const setupObjectListener = (col: string) => {
+    onSnapshot(
+      doc(db, col, 'data'),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          localStorage.setItem('lot_' + (col === 'splash' ? 'splash_settings' : col) + '_v1', JSON.stringify(data));
+          callback(col);
+        }
+      },
+      (error) => { console.error("Sync error:", error); }
+    );
+  };
+
+  arrayCollections.forEach(setupArrayListener);
+  objectCollections.forEach(setupObjectListener);
 };
+
+
+
+
+
 
 const saveToFirestore = async (col: string, data: any) => {
   try {
     if (Array.isArray(data)) {
-      await setDoc(doc(db, col, 'data'), { items: data });
+      for (const item of data) {
+        if (item && item.id) {
+          await setDoc(doc(db, col, item.id), item);
+        }
+      }
     } else {
       await setDoc(doc(db, col, 'data'), data);
     }
   } catch (e) {
     console.error('Firestore save failed', e);
+  }
+};
+
+const deleteFromFirestore = async (col: string, id: string) => {
+  try {
+    await deleteDoc(doc(db, col, id));
+  } catch(e) {
+    console.error('Firestore delete failed', e);
   }
 };
 
@@ -125,6 +166,7 @@ export const storageService = {
   deleteGalleryItem(id: string): void {
     const gallery = this.getGallery().filter(g => g.id !== id);
     this.saveGallery(gallery);
+    deleteFromFirestore("gallery", id);
   },
 
   // Posts / Wall
@@ -176,6 +218,7 @@ export const storageService = {
   deletePost(id: string): void {
     const posts = this.getPosts().filter(p => p.id !== id);
     this.savePosts(posts);
+    deleteFromFirestore("posts", id);
   },
 
   toggleLikePost(id: string): Post[] {
@@ -338,6 +381,7 @@ export const storageService = {
   deleteBooking(id: string): void {
     const bookings = this.getBookings().filter(b => b.id !== id);
     this.saveBookings(bookings);
+    deleteFromFirestore("bookings", id);
   },
 
   // --- Payment Transactions & Cash App POS Gateway ---
@@ -509,6 +553,7 @@ export const storageService = {
       }
       localStorage.setItem(KEYS.WAIVERS, JSON.stringify(updated));
       saveToFirestore("waivers", updated);
+      deleteFromFirestore("waivers", id);
     } catch (e) {
       console.warn('Failed to save waiver', e);
     }
@@ -520,6 +565,7 @@ export const storageService = {
       const updated = current.filter(w => w.id !== id);
       localStorage.setItem(KEYS.WAIVERS, JSON.stringify(updated));
       saveToFirestore("waivers", updated);
+      deleteFromFirestore("waivers", id);
     } catch (e) {
       console.warn('Failed to delete waiver', e);
     }
@@ -530,7 +576,39 @@ export const storageService = {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress heavily for Firestore (WebP 0.6 quality)
+          const compressedBase64 = canvas.toDataURL('image/webp', 0.6);
+          resolve(compressedBase64);
+        };
+        img.onerror = (error) => reject(error);
+      };
       reader.onerror = error => reject(error);
     });
   },

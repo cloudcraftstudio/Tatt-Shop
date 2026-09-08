@@ -17,10 +17,5 @@ export const db = getFirestore(app, "ai-studio-lightsouttattoo-90b14bb6-c7cf-4eb
 export const auth = getAuth(app);
 
 export const authenticateAdminSilently = async () => {
-  try {
-    await signInAnonymously(auth);
-    console.log("Firebase silently authenticated.");
-  } catch (error) {
-    console.error("Firebase auth error:", error);
-  }
+  console.log("Using public access mode. No anonymous auth required.");
 };

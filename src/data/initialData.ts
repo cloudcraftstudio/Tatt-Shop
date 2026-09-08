@@ -10,7 +10,7 @@ export const initialProfile: ArtistProfile = {
   onlineDiscountPercent: 15,
   securityDepositAmount: 200,
   depositPolicyText: '$200 nonrefundable security deposit required to secure any appointment. If you miss your appointment without prior notification, you lose your spot and your deposit is forfeited. Reschedules are accepted with proper notification and schedule change.',
-  cashAppHandle: '$LightsOutTattooTex',
+  cashAppHandle: '$texxx360',
   phone: '826-255-0831',
   emailPrimary: 'tex@lightsouttattoo.site',
   emailGeneral: 'info@lightsouttattoo.site',
@@ -531,7 +531,7 @@ export const initialTransactions: PaymentTransaction[] = [
     totalPaid: 200,
     paymentType: 'deposit',
     paymentMethod: 'cash_app',
-    cashAppHandle: '$LightsOutTattooTex',
+    cashAppHandle: '$texxx360',
     note: 'Appointment security deposit for Realism Roaring Bear forearm piece',
     status: 'completed',
     createdAt: '2026-09-04T16:25:00Z'

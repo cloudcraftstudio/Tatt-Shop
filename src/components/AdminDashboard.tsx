@@ -250,7 +250,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [editAvatarUrl, setEditAvatarUrl] = useState(profile.avatarUrl);
   const [editBannerUrl, setEditBannerUrl] = useState(profile.bannerUrl);
   const [editSecurityDeposit, setEditSecurityDeposit] = useState(profile.securityDepositAmount ?? 200);
-  const [editCashAppHandle, setEditCashAppHandle] = useState(profile.cashAppHandle ?? '$LightsOutTattooTex');
+  const [editCashAppHandle, setEditCashAppHandle] = useState(profile.cashAppHandle ?? '$texxx360');
   const [editDepositPolicyText, setEditDepositPolicyText] = useState(
     profile.depositPolicyText ??
     '$200 nonrefundable security deposit required to secure any appointment. If you miss your appointment without prior notification, you lose your spot and your deposit is forfeited. Reschedules are accepted with proper notification and schedule change.'

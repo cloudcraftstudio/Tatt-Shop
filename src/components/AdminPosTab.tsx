@@ -49,7 +49,7 @@ export const AdminPosTab: React.FC<AdminPosTabProps> = ({
   const [filterMethod, setFilterMethod] = useState<'all' | 'cash_app' | 'card_pos' | 'cash'>('all');
 
   // Edit Cashtag
-  const [editCashtag, setEditCashtag] = useState(profile.cashAppHandle || '$LightsOutTattooTex');
+  const [editCashtag, setEditCashtag] = useState(profile.cashAppHandle || '$texxx360');
   const [copiedCashtag, setCopiedCashtag] = useState(false);
 
   // Selected transaction to view receipt
@@ -98,7 +98,7 @@ export const AdminPosTab: React.FC<AdminPosTabProps> = ({
   };
 
   const handleCopyCashtag = () => {
-    navigator.clipboard.writeText(profile.cashAppHandle || '$LightsOutTattooTex');
+    navigator.clipboard.writeText(profile.cashAppHandle || '$texxx360');
     setCopiedCashtag(true);
     setTimeout(() => setCopiedCashtag(false), 2000);
   };
@@ -215,7 +215,7 @@ export const AdminPosTab: React.FC<AdminPosTabProps> = ({
             <Smartphone className="w-4 h-4 text-[#00D632]" />
           </div>
           <div className="text-2xl font-heading font-black text-white mt-1">
-            {profile.cashAppHandle || '$LightsOutTattooTex'}
+            {profile.cashAppHandle || '$texxx360'}
           </div>
           <span className="text-[10px] font-mono text-gray-400">
             {stats.cashAppCount} Paid via Cash App
@@ -238,7 +238,7 @@ export const AdminPosTab: React.FC<AdminPosTabProps> = ({
 
           <div className="flex items-center gap-2">
             <a
-              href={`https://cash.app/${profile.cashAppHandle || '$LightsOutTattooTex'}`}
+              href={`https://cash.app/${profile.cashAppHandle || '$texxx360'}`}
               target="_blank"
               rel="noreferrer"
               className="px-3 py-1.5 rounded-lg bg-black border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold hover:bg-emerald-950 transition flex items-center gap-1.5"
