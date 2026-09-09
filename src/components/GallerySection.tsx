@@ -1,3 +1,5 @@
+import { MediaRenderer } from "./MediaRenderer";
+import { CATEGORY_LABELS } from "../data/categories";
 import React, { useState, useMemo } from 'react';
 import {
   Search,
@@ -8,7 +10,8 @@ import {
   Sparkles,
   Clock,
   Tag,
-  Flame
+  Flame,
+  Trash2
 } from 'lucide-react';
 import { ArtCategoryKey, GalleryItem } from '../types';
 import { LightboxModal } from './LightboxModal';
@@ -17,25 +20,37 @@ interface GallerySectionProps {
   items: GalleryItem[];
   onOpenAdminUpload: () => void;
   onBookSimilar: (item: GalleryItem) => void;
+  isAdmin?: boolean;
+  onDeleteItem?: (id: string) => void;
 }
 
 export const GallerySection: React.FC<GallerySectionProps> = ({
   items,
   onOpenAdminUpload,
-  onBookSimilar
+  onBookSimilar,
+  isAdmin = false,
+  onDeleteItem
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<ArtCategoryKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLightboxItem, setActiveLightboxItem] = useState<GalleryItem | null>(null);
 
   const categories: { key: ArtCategoryKey; label: string; icon: string; count?: number }[] = [
-    { key: 'all', label: 'All Masterpieces', icon: '⚡' },
-    { key: 'realism', label: 'Black & Grey Realism', icon: '🦅' },
-    { key: 'coverups', label: 'Cover-Up Transformations', icon: '🔄' },
-    { key: 'portraits', label: 'Portraits & Figures', icon: '🗿' },
-    { key: 'dark_neo', label: 'Dark Neo & Skulls', icon: '💀' },
-    { key: 'machines', label: 'Old Skool & Machines', icon: '⚙️' },
-    { key: 'biomech', label: 'Biomechanical & Voltage', icon: '🔌' }
+    { key: 'all', label: CATEGORY_LABELS['all'], icon: '⚡' },
+    { key: 'black_and_grey', label: CATEGORY_LABELS['black_and_grey'], icon: '🦅' },
+    { key: 'realism', label: CATEGORY_LABELS['realism'], icon: '🗿' },
+    { key: 'color', label: CATEGORY_LABELS['color'], icon: '🌈' },
+    { key: 'traditional', label: CATEGORY_LABELS['traditional'], icon: '🌹' },
+    { key: 'coverups', label: CATEGORY_LABELS['coverups'], icon: '🔄' },
+    { key: 'tribal', label: CATEGORY_LABELS['tribal'], icon: '🛡️' },
+    { key: 'mechanical', label: CATEGORY_LABELS['mechanical'], icon: '⚙️' },
+    { key: 'steampunk', label: CATEGORY_LABELS['steampunk'], icon: '🕰️' },
+    { key: 'new_skool', label: CATEGORY_LABELS['new_skool'], icon: '🎨' },
+    { key: 'portraits', label: CATEGORY_LABELS['portraits'], icon: '👤' },
+    { key: 'artwork', label: CATEGORY_LABELS['artwork'], icon: '🖼️' },
+    { key: 'photography', label: CATEGORY_LABELS['photography'], icon: '📷' },
+    { key: 'digital_graphics', label: CATEGORY_LABELS['digital_graphics'], icon: '💻' },
+    { key: 'miscellaneous', label: CATEGORY_LABELS['miscellaneous'], icon: '🧩' }
   ];
 
   // Dynamic filter
@@ -170,7 +185,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
             >
               {/* Image Preview Container */}
               <div className="relative aspect-[3/4] overflow-hidden bg-black">
-                <img
+                <MediaRenderer
                   src={item.imageUrl}
                   alt={item.title}
                   loading="lazy"
@@ -192,6 +207,21 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                     </span>
                   )}
                 </div>
+
+                {/* Admin Quick Delete Button */}
+                {isAdmin && onDeleteItem && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteItem(item.id);
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-950/80 border border-red-500/60 text-red-400 hover:text-white hover:bg-red-900 transition z-20 shadow-md"
+                    title="Delete piece from gallery"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
 
                 {/* Hover Eye Trigger */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-cyan-950/30 backdrop-blur-[2px]">
@@ -251,6 +281,8 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
         onClose={() => setActiveLightboxItem(null)}
         onSelect={item => setActiveLightboxItem(item)}
         onBookSimilar={item => onBookSimilar(item)}
+        isAdmin={isAdmin}
+        onDeleteItem={onDeleteItem}
       />
     </section>
   );

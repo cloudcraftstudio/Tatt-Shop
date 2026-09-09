@@ -21,6 +21,8 @@ const KEYS = {
 };
 
 
+let memoryGalleryCache: GalleryItem[] | null = null;
+
 export const setupFirestoreSync = (callback: (data: any) => void) => {
   const arrayCollections = ['gallery', 'posts', 'journal', 'reels', 'bookings', 'transactions', 'testimonials', 'waivers'];
   const objectCollections = ['profile', 'splash'];
@@ -35,32 +37,28 @@ export const setupFirestoreSync = (callback: (data: any) => void) => {
           return data;
         });
 
-        // Flatten old '{ items: [...] }' documents if they exist
-        const oldDataDoc = items.find(item => item._docId === 'data');
-        if (oldDataDoc && Array.isArray(oldDataDoc.items)) {
-          const individualItems = items.filter(item => item._docId !== 'data');
-          items = [...individualItems, ...oldDataDoc.items];
-        }
+        // Filter out any obsolete 'data' document
+        items = items.filter(item => item._docId !== 'data');
 
-        // Clean up _docId
+        // Clean up _docId and ensure arrays exist
         items = items.map(item => {
           const { _docId, ...rest } = item;
-          // Ensure arrays exist for things that might have been lost
           if (col === 'gallery' || col === 'posts' || col === 'journal') {
             if (!rest.tags) rest.tags = [];
           }
           return rest;
         });
 
-        // Always write to local storage so it syncs deletions/empty states too
-        // Only ignore if the cloud is perfectly empty AND we already have initial data (prevent wiping defaults on first load ever)
-        const existingData = localStorage.getItem('lot_' + col + '_v1');
-        if (items.length === 0 && (!existingData || existingData.includes('initial'))) {
-           // don't overwrite defaults with empty cloud if it's the first run
-        } else {
-           localStorage.setItem('lot_' + col + '_v1', JSON.stringify(items));
-           callback(col);
+        if (col === 'gallery') {
+          memoryGalleryCache = items as GalleryItem[];
         }
+
+        try {
+          localStorage.setItem('lot_' + col + '_v1', JSON.stringify(items));
+        } catch (storageErr) {
+          console.warn('LocalStorage write skipped due to quota for ' + col, storageErr);
+        }
+        callback(col);
       },
       (error) => { console.error("Sync error:", error); }
     );
@@ -72,7 +70,11 @@ export const setupFirestoreSync = (callback: (data: any) => void) => {
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
-          localStorage.setItem('lot_' + (col === 'splash' ? 'splash_settings' : col) + '_v1', JSON.stringify(data));
+          try {
+            localStorage.setItem('lot_' + (col === 'splash' ? 'splash_settings' : col) + '_v1', JSON.stringify(data));
+          } catch (storageErr) {
+            console.warn('LocalStorage write failed for ' + col, storageErr);
+          }
           callback(col);
         }
       },
@@ -89,14 +91,11 @@ export const setupFirestoreSync = (callback: (data: any) => void) => {
 
 
 
+const arrayCache = new Map<string, any[]>();
 const saveToFirestore = async (col: string, data: any) => {
   try {
     if (Array.isArray(data)) {
-      for (const item of data) {
-        if (item && item.id) {
-          await setDoc(doc(db, col, item.id), item);
-        }
-      }
+      // Intentionally do nothing. Array writes are now handled per-document.
     } else {
       await setDoc(doc(db, col, 'data'), data);
     }
@@ -104,7 +103,6 @@ const saveToFirestore = async (col: string, data: any) => {
     console.error('Firestore save failed', e);
   }
 };
-
 const deleteFromFirestore = async (col: string, id: string) => {
   try {
     await deleteDoc(doc(db, col, id));
@@ -137,21 +135,50 @@ export const storageService = {
     }
   },
 
+  updateLiveStatus(status: ArtistProfile['liveStatus'], customMessage?: string): ArtistProfile {
+    const profile = this.getProfile();
+    const defaultMessages: Record<string, string> = {
+      open_slots: '⚡ Chair is Open • Book Now & Claim -15% Online Discount!',
+      in_chair: '⚡ In The Chair • Working on full realism custom tattoo piece',
+      designing: '⚡ Designing Custom Work • Preparing stencils & flash',
+      consulting: '⚡ In Consultation • Reviewing client reference artwork',
+      studio_closed: 'Studio Closed • Online bookings & requests open 24/7'
+    };
+    const updated = {
+      ...profile,
+      liveStatus: status,
+      statusMessage: customMessage !== undefined ? customMessage : (defaultMessages[status] || profile.statusMessage)
+    };
+    this.saveProfile(updated);
+    return updated;
+  },
+
   // Gallery
   getGallery(): GalleryItem[] {
+    if (memoryGalleryCache !== null) {
+      return memoryGalleryCache;
+    }
     try {
       const data = localStorage.getItem(KEYS.GALLERY);
       if (!data) {
-        localStorage.setItem(KEYS.GALLERY, JSON.stringify(initialGallery));
+        memoryGalleryCache = initialGallery;
         return initialGallery;
       }
       
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) return parsed;
-      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      if (Array.isArray(parsed)) {
+        memoryGalleryCache = parsed;
+        return parsed;
+      }
+      if (parsed && Array.isArray(parsed.items)) {
+        memoryGalleryCache = parsed.items;
+        return parsed.items;
+      }
+      memoryGalleryCache = [];
       return [];
 
     } catch {
+      memoryGalleryCache = initialGallery;
       return initialGallery;
     }
   },
@@ -161,12 +188,13 @@ export const storageService = {
   },
 
   saveGallery(gallery: GalleryItem[]): void {
+    memoryGalleryCache = gallery;
     try {
       localStorage.setItem(KEYS.GALLERY, JSON.stringify(gallery));
-      saveToFirestore("gallery", gallery);
     } catch (e) {
-      console.warn('Storage error on gallery save', e);
+      console.warn('Storage quota warning on gallery save to localStorage', e);
     }
+    
   },
 
   addGalleryItem(item: Omit<GalleryItem, 'id' | 'createdAt'>): GalleryItem {
@@ -178,26 +206,88 @@ export const storageService = {
     };
     const updated = [newItem, ...gallery];
     this.saveGallery(updated);
+    setDoc(doc(db, "gallery", newItem.id), newItem).catch(e => console.error(e));
     return newItem;
+  },
+
+  async addGalleryItemsBulk(newItemsData: Omit<GalleryItem, 'id' | 'createdAt'>[]): Promise<GalleryItem[]> {
+    const current = this.getGallery();
+    const createdItems: GalleryItem[] = newItemsData.map((data, idx) => ({
+      ...data,
+      id: `gal-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+      createdAt: new Date().toISOString().split('T')[0]
+    }));
+
+    const updated = [...createdItems, ...current];
+    memoryGalleryCache = updated;
+
+    try {
+      localStorage.setItem(KEYS.GALLERY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('LocalStorage quota reached during bulk gallery save', e);
+    }
+
+    // Persist each item directly to Firestore
+    for (const item of createdItems) {
+      try {
+        await setDoc(doc(db, "gallery", item.id), item);
+      } catch (err) {
+        console.error('Failed to write item to Firestore', item.id, err);
+      }
+    }
+
+    return createdItems;
   },
 
   createGalleryItem(item: Omit<GalleryItem, 'id' | 'createdAt'>): GalleryItem {
     return this.addGalleryItem(item);
   },
 
-  updateGalleryItem(updatedItem: GalleryItem): void {
+  async updateGalleryItem(updatedItem: GalleryItem): Promise<void> {
     const gallery = this.getGallery();
     const index = gallery.findIndex(g => g.id === updatedItem.id);
     if (index !== -1) {
       gallery[index] = updatedItem;
-      this.saveGallery(gallery);
+      memoryGalleryCache = gallery;
+      try {
+        localStorage.setItem(KEYS.GALLERY, JSON.stringify(gallery));
+      } catch (e) {
+        console.warn('Storage quota warning on gallery update', e);
+      }
+      try {
+        await setDoc(doc(db, "gallery", updatedItem.id), updatedItem);
+      } catch(e) {
+        console.error('Firestore update failed', e);
+      }
     }
   },
 
-  deleteGalleryItem(id: string): void {
+  async deleteGalleryItem(id: string): Promise<void> {
     const gallery = this.getGallery().filter(g => g.id !== id);
-    this.saveGallery(gallery);
-    deleteFromFirestore("gallery", id);
+    memoryGalleryCache = gallery;
+    try {
+      localStorage.setItem(KEYS.GALLERY, JSON.stringify(gallery));
+    } catch (e) {
+      console.warn('LocalStorage error on delete', e);
+    }
+    await deleteFromFirestore("gallery", id);
+  },
+
+  async clearAllGallery(): Promise<void> {
+    const gallery = this.getGallery();
+    memoryGalleryCache = [];
+    try {
+      localStorage.setItem(KEYS.GALLERY, JSON.stringify([]));
+    } catch (e) {}
+
+    for (const item of gallery) {
+      try {
+        await deleteDoc(doc(db, "gallery", item.id));
+      } catch (e) {}
+    }
+    try {
+      await deleteDoc(doc(db, "gallery", "data"));
+    } catch (e) {}
   },
 
   // Posts / Wall
@@ -222,7 +312,7 @@ export const storageService = {
   savePosts(posts: Post[]): void {
     try {
       localStorage.setItem(KEYS.POSTS, JSON.stringify(posts));
-      saveToFirestore("posts", posts);
+      
     } catch (e) {
       console.warn('Storage error on posts save', e);
     }
@@ -239,6 +329,7 @@ export const storageService = {
     };
     const updated = [newPost, ...posts];
     this.savePosts(updated);
+    setDoc(doc(db, "posts", newPost.id), newPost).catch(e => console.error(e));
     return newPost;
   },
 
@@ -295,10 +386,16 @@ export const storageService = {
   saveJournalPosts(posts: JournalPost[]): void {
     try {
       localStorage.setItem(KEYS.JOURNAL, JSON.stringify(posts));
-      saveToFirestore("journal", posts);
+      
     } catch (e) {
       console.warn('Storage error on journal save', e);
     }
+  },
+
+  deleteJournalPost(id: string): void {
+    const posts = this.getJournalPosts().filter(p => p.id !== id);
+    this.saveJournalPosts(posts);
+    deleteFromFirestore("journal", id);
   },
 
   // TikTok Reels
@@ -323,7 +420,7 @@ export const storageService = {
   saveTikTokReels(reels: TikTokReel[]): void {
     try {
       localStorage.setItem(KEYS.REELS, JSON.stringify(reels));
-      saveToFirestore("reels", reels);
+      
     } catch (e) {
       console.warn('Storage error on reels save', e);
     }
@@ -337,12 +434,14 @@ export const storageService = {
     };
     const updated = [newReel, ...reels];
     this.saveTikTokReels(updated);
+    setDoc(doc(db, "reels", newReel.id), newReel).catch(e => console.error(e));
     return newReel;
   },
 
   deleteTikTokReel(id: string): void {
     const reels = this.getTikTokReels().filter(r => r.id !== id);
     this.saveTikTokReels(reels);
+    deleteFromFirestore("reels", id);
   },
 
   syncTikTokReels(newReels: TikTokReel[]): void {
@@ -376,7 +475,7 @@ export const storageService = {
   saveBookings(bookings: Booking[]): void {
     try {
       localStorage.setItem(KEYS.BOOKINGS, JSON.stringify(bookings));
-      saveToFirestore("bookings", bookings);
+      
     } catch (e) {
       console.warn('Storage error on bookings save', e);
     }
@@ -396,6 +495,7 @@ export const storageService = {
     };
     const updated = [newBooking, ...bookings];
     this.saveBookings(updated);
+    setDoc(doc(db, "bookings", newBooking.id), newBooking).catch(e => console.error(e));
     return newBooking;
   },
 
@@ -457,7 +557,7 @@ export const storageService = {
   saveTransactions(transactions: PaymentTransaction[]): void {
     try {
       localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(transactions));
-      saveToFirestore("transactions", transactions);
+      
     } catch (e) {
       console.warn('Storage error on transactions save', e);
     }
@@ -503,6 +603,15 @@ export const storageService = {
     }
   },
 
+  saveTestimonials(testimonials: Testimonial[]): void {
+    try {
+      localStorage.setItem(KEYS.TESTIMONIALS, JSON.stringify(testimonials));
+      
+    } catch (e) {
+      console.warn('Storage error on testimonials save', e);
+    }
+  },
+
   addTestimonial(test: Partial<Testimonial> & { clientName: string; rating: number }): Testimonial {
     const tests = this.getTestimonials();
     const newTest: Testimonial = {
@@ -522,7 +631,7 @@ export const storageService = {
     const updated = [newTest, ...tests];
     try {
       localStorage.setItem(KEYS.TESTIMONIALS, JSON.stringify(updated));
-      saveToFirestore("testimonials", updated);
+      setDoc(doc(db, "testimonials", newTest.id), newTest).catch(err => console.error(err));
     } catch (e) {
       console.warn(e);
     }
@@ -572,6 +681,24 @@ export const storageService = {
       if (Array.isArray(data.posts)) this.savePosts(data.posts);
       if (Array.isArray(data.journal)) this.saveJournalPosts(data.journal);
       if (Array.isArray(data.reels)) this.saveTikTokReels(data.reels);
+      // Sync imported arrays directly to Firestore since we removed batch saving
+      const syncArray = async (col, arr) => {
+        if (!Array.isArray(arr)) return;
+        for (const item of arr) {
+          if (item && item.id) await setDoc(doc(db, col, item.id), item).catch(e => console.error(e));
+        }
+      };
+      
+      Promise.all([
+        syncArray("gallery", data.gallery),
+        syncArray("bookings", data.bookings),
+        syncArray("transactions", data.transactions),
+        syncArray("testimonials", data.testimonials),
+        syncArray("posts", data.posts),
+        syncArray("journal", data.journal),
+        syncArray("reels", data.reels)
+      ]).catch(e => console.error('Background sync failed', e));
+
       return true;
     } catch (err) {
       console.error('Import failed', err);
@@ -601,6 +728,15 @@ export const storageService = {
     }
   },
 
+  saveWaivers(waivers: SessionRecordingWaiver[]): void {
+    try {
+      localStorage.setItem(KEYS.WAIVERS, JSON.stringify(waivers));
+      
+    } catch (e) {
+      console.warn('Storage error on waivers save', e);
+    }
+  },
+
   saveWaiver(waiver: SessionRecordingWaiver): void {
     try {
       const current = this.getWaivers();
@@ -613,7 +749,7 @@ export const storageService = {
         updated = [waiver, ...current];
       }
       localStorage.setItem(KEYS.WAIVERS, JSON.stringify(updated));
-      saveToFirestore("waivers", updated);
+      if (waiver) setDoc(doc(db, "waivers", waiver.id), waiver).catch(err => console.error(err));
     } catch (e) {
       console.warn('Failed to save waiver', e);
     }
@@ -624,52 +760,75 @@ export const storageService = {
       const current = this.getWaivers();
       const updated = current.filter(w => w.id !== id);
       localStorage.setItem(KEYS.WAIVERS, JSON.stringify(updated));
-      saveToFirestore("waivers", updated);
+      
+      deleteFromFirestore("waivers", id);
       
     } catch (e) {
       console.warn('Failed to delete waiver', e);
     }
   },
 
-  // Utility to read local file to base64
+  // Utility to read local file to base64 with reliable JPEG compression or direct passthrough for GIFs/Videos
   fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 1200;
-          const MAX_HEIGHT = 1200;
-          let width = img.width;
-          let height = img.height;
+      // For videos/gifs we handle it in the component now using uploadLargeMedia directly
+      // So we'll just return raw for them up to 50MB and let the component handle chunking
+      if (file.type === 'image/gif' || file.type.startsWith('video/')) {
+        if (file.size > 50000000) { // 50MB limit
+          reject(new Error(`File ${file.name} is too large. Limit is 50MB.`));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read GIF/Video file'));
+        reader.readAsDataURL(file);
+        return;
+      }
 
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
+      // Standard image compression (JPG, PNG, WEBP)
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 1000;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height = Math.round(height * (MAX_DIM / width));
+            width = MAX_DIM;
           }
+        } else {
+          if (height > MAX_DIM) {
+            width = Math.round(width * (MAX_DIM / height));
+            height = MAX_DIM;
+          }
+        }
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          
-          // Compress heavily for Firestore (WebP 0.6 quality)
-          const compressedBase64 = canvas.toDataURL('image/webp', 0.6);
-          resolve(compressedBase64);
-        };
-        img.onerror = (error) => reject(error);
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas rendering context not available'));
+          return;
+        }
+
+        // Fill background in case of transparent png
+        ctx.fillStyle = '#050811';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Standard JPEG quality 0.72 - universal browser support, crisp detail, ~50-80KB size
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.72);
+        resolve(compressedBase64);
       };
-      reader.onerror = error => reject(error);
+      img.onerror = (error) => {
+        URL.revokeObjectURL(objectUrl);
+        reject(error);
+      };
+      img.src = objectUrl;
     });
   },
 

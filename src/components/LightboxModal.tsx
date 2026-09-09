@@ -1,3 +1,4 @@
+import { MediaRenderer } from "./MediaRenderer";
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -9,7 +10,8 @@ import {
   Clock,
   Tag,
   Sparkles,
-  Layers
+  Layers,
+  Trash2
 } from 'lucide-react';
 import { GalleryItem } from '../types';
 
@@ -20,6 +22,8 @@ interface LightboxModalProps {
   onClose: () => void;
   onSelect: (item: GalleryItem) => void;
   onBookSimilar: (item: GalleryItem) => void;
+  isAdmin?: boolean;
+  onDeleteItem?: (id: string) => void;
 }
 
 export const LightboxModal: React.FC<LightboxModalProps> = ({
@@ -28,11 +32,14 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
   isOpen,
   onClose,
   onSelect,
-  onBookSimilar
+  onBookSimilar,
+  isAdmin = false,
+  onDeleteItem
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showBeforeAfter, setShowBeforeAfter] = useState(false); // For cover-ups
   const [beforeSplit, setBeforeSplit] = useState(50); // Slider percentage
+  const [subImageIndex, setSubImageIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -41,6 +48,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
     setZoomLevel(1);
     setShowBeforeAfter(false);
     setBeforeSplit(50);
+    setSubImageIndex(0);
   }, [item?.id]);
 
   // Lock background body scroll while modal is open
@@ -241,14 +249,35 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
             </div>
           ) : (
             /* Standard Full High-Res Lightbox Image */
-            <div className="w-full flex items-center justify-center overflow-auto p-1 sm:p-2">
-              <img
-                src={item.imageUrl}
+            <div className="w-full flex flex-col items-center justify-center overflow-auto p-1 sm:p-2">
+              <MediaRenderer
+                src={subImageIndex === 0 ? item.imageUrl : (item.additionalImages?.[subImageIndex - 1] || item.imageUrl)}
                 alt={item.title}
-                className="max-h-[60vh] sm:max-h-[72vh] w-auto max-w-full object-contain transition-transform duration-300 cursor-zoom-in rounded-xl"
+                className="max-h-[60vh] sm:max-h-[70vh] w-auto max-w-full object-contain transition-transform duration-300 cursor-zoom-in rounded-xl"
                 style={{ transform: `scale(${zoomLevel})` }}
                 onClick={toggleZoom}
               />
+              
+              {/* Thumbnail Strip for multiple images */}
+              {item.additionalImages && item.additionalImages.length > 0 && !showBeforeAfter && (
+                <div className="flex gap-2 mt-4 overflow-x-auto max-w-full pb-2 scrollbar-thin px-2 justify-center">
+                  <button
+                    onClick={() => setSubImageIndex(0)}
+                    className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition ${subImageIndex === 0 ? 'border-cyan-400 opacity-100 shadow-[0_0_10px_#00f0ff]' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                  >
+                    <MediaRenderer src={item.imageUrl} alt="Main" className="w-full h-full object-cover" />
+                  </button>
+                  {item.additionalImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSubImageIndex(idx + 1)}
+                      className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition ${subImageIndex === idx + 1 ? 'border-cyan-400 opacity-100 shadow-[0_0_10px_#00f0ff]' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                    >
+                      <MediaRenderer src={img} alt={`Additional ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -260,6 +289,11 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
               <h3 className="font-heading font-black text-base sm:text-xl text-white">
                 {item.title}
               </h3>
+              {item.clientName && (
+                <span className="px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-300 border border-emerald-400/50 font-mono text-[10px] font-bold uppercase">
+                  Client: {item.clientName}
+                </span>
+              )}
               {item.isCoverUp && (
                 <span className="px-2 py-0.5 rounded bg-blue-900/80 text-cyan-300 border border-cyan-400/50 font-mono text-[10px] font-bold">
                   COVER-UP
@@ -289,6 +323,20 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 w-full sm:w-auto">
+            {isAdmin && onDeleteItem && (
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteItem(item.id);
+                  onClose();
+                }}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-3 rounded-xl bg-red-950/80 border border-red-500/60 text-red-400 hover:text-white hover:bg-red-900 transition text-xs font-mono shrink-0"
+                title="Delete this piece from studio portfolio"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Delete Piece</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 onClose();

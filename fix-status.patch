@@ -1,0 +1,24 @@
+--- src/components/AdminDashboard.tsx
++++ src/components/AdminDashboard.tsx
+@@ -1318,5 +1318,7 @@
+               >
+-                <option value="available">Available / Booking Consultations</option>
++                <option value="open_slots">Chair is Open / Booking Consultations</option>
+                 <option value="in_chair">In Chair (Tattooing Live)</option>
+-                <option value="booked">Fully Booked for the Week</option>
++                <option value="designing">Designing Custom Work</option>
++                <option value="consulting">In Consultation</option>
++                <option value="studio_closed">Studio Closed</option>
+               </select>
+--- src/components/HeroSection.tsx
++++ src/components/HeroSection.tsx
+@@ -37,3 +37,9 @@
+           <span className="font-semibold text-gray-200">
+-            {profile.liveStatus === 'in_chair' ? 'LIVE IN THE CHAIR' : 'STUDIO OPEN'}
++            {profile.liveStatus === 'in_chair' ? 'LIVE IN THE CHAIR' : 
++             profile.liveStatus === 'open_slots' ? 'CHAIR IS OPEN' : 
++             profile.liveStatus === 'designing' ? 'DESIGNING CUSTOM WORK' :
++             profile.liveStatus === 'consulting' ? 'IN CONSULTATION' :
++             profile.liveStatus === 'studio_closed' ? 'STUDIO CLOSED' : 
++             'STUDIO OPEN'}
+           </span>

@@ -169,7 +169,7 @@ export default function App() {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 1.03 }}
             transition={{ duration: 0.45, ease: 'easeInOut' }}
-            className="fixed inset-0 z-[100]"
+            className="fixed inset-0 z-[200]"
           >
             <MatrixSplashScreen
               settings={splashSettings}
@@ -204,6 +204,11 @@ export default function App() {
             <HeroSection
               profile={profile}
               onNavigate={handleNavigate}
+              isAdmin={isAdmin}
+              onUpdateStatus={status => {
+                const updated = storageService.updateLiveStatus(status);
+                setProfile(updated);
+              }}
             />
 
             {/* Quick Pricing Estimator Teaser */}
@@ -226,6 +231,11 @@ export default function App() {
               items={(galleryItems || []).slice(0, 8)}
               onOpenAdminUpload={() => handleNavigate('admin')}
               onBookSimilar={handleBookSimilarFromGallery}
+              isAdmin={isAdmin}
+              onDeleteItem={async (id) => {
+                await storageService.deleteGalleryItem(id);
+                refreshAllData();
+              }}
             />
 
             {/* Customer Testimonial Slider */}
@@ -282,6 +292,11 @@ export default function App() {
             items={galleryItems}
             onOpenAdminUpload={() => handleNavigate('admin')}
             onBookSimilar={handleBookSimilarFromGallery}
+            isAdmin={isAdmin}
+            onDeleteItem={async (id) => {
+              await storageService.deleteGalleryItem(id);
+              refreshAllData();
+            }}
           />
         )}
 
@@ -405,6 +420,11 @@ export default function App() {
             onSplashSettingsUpdated={newSettings => setSplashSettings(newSettings)}
             onOpenApkModal={() => setIsApkModalOpen(true)}
             onTriggerSplash={() => setShowSplash(true)}
+            onAdminAuthChange={session => {
+              setIsAdmin(session.isAuthenticated);
+              refreshAllData();
+            }}
+            onBackToStudio={() => handleNavigate('home')}
           />
         )}
 

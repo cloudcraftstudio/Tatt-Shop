@@ -16,12 +16,25 @@ import { ArtistProfile } from '../types';
 interface HeroSectionProps {
   profile: ArtistProfile;
   onNavigate: (tab: string) => void;
+  isAdmin?: boolean;
+  onUpdateStatus?: (status: ArtistProfile['liveStatus']) => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   profile,
-  onNavigate
+  onNavigate,
+  isAdmin = false,
+  onUpdateStatus
 }) => {
+  const [showStatusMenu, setShowStatusMenu] = React.useState(false);
+
+  const statusOptions: { status: ArtistProfile['liveStatus']; label: string; dotColor: string }[] = [
+    { status: 'open_slots', label: 'Chair is Open: Book Now', dotColor: 'bg-emerald-400' },
+    { status: 'in_chair', label: 'Live in the Chair', dotColor: 'bg-rose-400' },
+    { status: 'designing', label: 'Designing Custom Work', dotColor: 'bg-purple-400' },
+    { status: 'consulting', label: 'In Consultation', dotColor: 'bg-blue-400' },
+    { status: 'studio_closed', label: 'Studio Closed', dotColor: 'bg-gray-400' }
+  ];
   return (
     <section className="relative pt-4 pb-8 px-4 sm:px-6 overflow-hidden">
       {/* High Voltage Glow Backdrop Orbs */}
@@ -29,19 +42,92 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <div className="absolute top-40 right-4 w-60 h-60 bg-blue-600/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
       <div className="max-w-6xl mx-auto">
-        {/* Live Status Ticker Banner */}
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 text-xs font-mono mb-5 shadow-[0_0_15px_rgba(0,240,255,0.25)]">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
-          </span>
-          <span className="font-semibold text-gray-200">
-            {profile.liveStatus === 'in_chair' ? 'LIVE IN THE CHAIR' : 'STUDIO OPEN'}
-          </span>
-          <span className="text-gray-500">•</span>
-          <span className="text-cyan-300 truncate max-w-[200px] sm:max-w-none">
-            {profile.statusMessage}
-          </span>
+        {/* Live Status Ticker Banner with Quick Switcher */}
+        <div className="relative inline-block mb-5">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 text-xs font-mono shadow-[0_0_15px_rgba(0,240,255,0.25)] flex-wrap">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                profile.liveStatus === 'open_slots' ? 'bg-emerald-400' :
+                profile.liveStatus === 'in_chair' ? 'bg-rose-400' :
+                profile.liveStatus === 'designing' ? 'bg-purple-400' :
+                profile.liveStatus === 'consulting' ? 'bg-blue-400' : 'bg-gray-400'
+              }`}></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                profile.liveStatus === 'open_slots' ? 'bg-emerald-500' :
+                profile.liveStatus === 'in_chair' ? 'bg-rose-500' :
+                profile.liveStatus === 'designing' ? 'bg-purple-500' :
+                profile.liveStatus === 'consulting' ? 'bg-blue-500' : 'bg-gray-500'
+              }`}></span>
+            </span>
+
+            <span className="font-bold text-white tracking-wide">
+              {profile.liveStatus === 'open_slots' ? 'CHAIR IS OPEN' : 
+               profile.liveStatus === 'in_chair' ? 'LIVE IN THE CHAIR' : 
+               profile.liveStatus === 'designing' ? 'DESIGNING CUSTOM WORK' :
+               profile.liveStatus === 'consulting' ? 'IN CONSULTATION' :
+               profile.liveStatus === 'studio_closed' ? 'STUDIO CLOSED' : 
+               'STUDIO OPEN'}
+            </span>
+
+            <span className="text-gray-500">•</span>
+            <span className="text-cyan-300 truncate max-w-[220px] sm:max-w-none">
+              {profile.statusMessage}
+            </span>
+
+            {/* Change Status trigger (for Tex / Admin) */}
+            {isAdmin && onUpdateStatus ? (
+              <button
+                type="button"
+                onClick={() => setShowStatusMenu(prev => !prev)}
+                className="ml-1 px-2 py-0.5 rounded bg-cyan-900/80 border border-cyan-400/50 hover:bg-cyan-800 text-[10px] text-cyan-200 uppercase font-bold tracking-wider transition"
+                title="Change studio status"
+              >
+                Change Status ▾
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onNavigate(profile.liveStatus === 'open_slots' ? 'booking' : 'admin')}
+                className="ml-1 px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/50 hover:bg-emerald-900 text-[10px] text-emerald-300 font-bold uppercase tracking-wider transition"
+              >
+                {profile.liveStatus === 'open_slots' ? 'Book Now →' : 'Tex Status'}
+              </button>
+            )}
+          </div>
+
+          {/* Admin Live Status Dropdown Menu */}
+          {showStatusMenu && isAdmin && onUpdateStatus && (
+            <div className="absolute left-0 top-full mt-2 z-50 w-72 p-2 rounded-2xl bg-[#080e1c] border-2 border-cyan-400/80 shadow-[0_10px_30px_rgba(0,240,255,0.3)] backdrop-blur-xl">
+              <div className="px-2 py-1.5 border-b border-cyan-500/20 text-[11px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
+                Select Studio Live Status
+              </div>
+              <div className="py-1 space-y-1">
+                {statusOptions.map(opt => (
+                  <button
+                    key={opt.status}
+                    type="button"
+                    onClick={() => {
+                      onUpdateStatus(opt.status);
+                      setShowStatusMenu(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-mono text-left transition ${
+                      profile.liveStatus === opt.status
+                        ? 'bg-cyan-500 text-black font-bold'
+                        : 'text-gray-300 hover:bg-cyan-950/60 hover:text-cyan-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${opt.dotColor}`} />
+                      <span>{opt.label}</span>
+                    </div>
+                    {profile.liveStatus === opt.status && (
+                      <span className="text-[10px] uppercase font-bold">Active</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Main Grid: Portrait & Bold Bio */}

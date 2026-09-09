@@ -269,22 +269,42 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
           </div>
         </div>
 
+        {/* Quick Studio PIN Helper & Return options */}
+        <div className="mt-5 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-center">
+          <div className="flex items-center justify-between text-[11px] font-mono mb-2">
+            <span className="text-gray-400">Artist / Owner Key:</span>
+            <span className="text-cyan-300 font-bold">PIN 7391</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handlePinSubmit('7391')}
+            className="w-full py-2 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 hover:text-white font-mono text-xs font-bold transition flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(0,240,255,0.15)]"
+          >
+            <Unlock className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Unlock Studio as Tex (PIN 7391)</span>
+          </button>
+        </div>
+
         {/* Footer info & Cancel option */}
-        <div className="mt-6 pt-4 border-t border-gray-800/80 flex items-center justify-between text-[11px] font-mono text-gray-500">
-          <span className="flex items-center gap-1">
+        <div className="mt-5 pt-4 border-t border-gray-800/80 flex items-center justify-between text-[11px] font-mono text-gray-500">
+          <span className="flex items-center gap-1 text-gray-400">
             <KeyRound className="w-3 h-3 text-cyan-400" />
-            Secure Studio Access
+            <span>Encrypted Gate</span>
           </span>
 
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="text-gray-400 hover:text-cyan-300 transition"
-            >
-              Return to Gallery
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (onCancel) {
+                onCancel();
+              } else {
+                window.location.hash = '';
+              }
+            }}
+            className="px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 text-gray-300 hover:text-cyan-300 border border-gray-800 transition flex items-center gap-1 text-xs"
+          >
+            <span>← Back to Studio</span>
+          </button>
         </div>
       </div>
 

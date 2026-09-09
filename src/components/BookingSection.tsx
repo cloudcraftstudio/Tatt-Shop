@@ -1,3 +1,4 @@
+import { uploadLargeMedia } from "../services/mediaStore";
 import React, { useState } from 'react';
 import {
   Calendar,
@@ -68,7 +69,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const base64 = await storageService.fileToBase64(file);
+      const base64 = await uploadLargeMedia(file);
       if (type === 'reference') setReferencePhoto(base64);
       else setCoverUpPhoto(base64);
     } catch (err) {
@@ -432,7 +433,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   ) : (
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       onChange={e => handleFileUpload(e, 'coverup')}
                       className="text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-950 file:text-cyan-300 hover:file:bg-cyan-900"
                     />
@@ -465,7 +466,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
             ) : (
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 onChange={e => handleFileUpload(e, 'reference')}
                 className="w-full text-xs text-gray-400 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-cyan-950 file:text-cyan-300 hover:file:bg-cyan-900"
               />

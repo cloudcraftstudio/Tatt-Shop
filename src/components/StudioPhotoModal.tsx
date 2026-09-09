@@ -1,3 +1,4 @@
+import { uploadLargeMedia } from "../services/mediaStore";
 import React, { useState, useRef } from 'react';
 import {
   Camera,
@@ -37,7 +38,7 @@ export const StudioPhotoModal: React.FC<StudioPhotoModalProps> = ({
     if (!file) return;
 
     try {
-      const base64 = await storageService.fileToBase64(file);
+      const base64 = await uploadLargeMedia(file);
       setSelectedPhoto(base64);
     } catch (err) {
       console.error('Failed to read image file', err);
@@ -131,7 +132,7 @@ export const StudioPhotoModal: React.FC<StudioPhotoModalProps> = ({
             <input
               type="file"
               ref={fileInputRef}
-              accept="image/*"
+              accept="image/*,video/*"
               onChange={handleFileUpload}
               className="hidden"
             />

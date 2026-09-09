@@ -4,6 +4,8 @@ import fs from 'fs';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Load environment variables
 dotenv.config();
@@ -121,6 +123,62 @@ const pendingStates = new Map<string, { createdAt: number; redirectUri: string }
 // API ROUTES
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+// Cloudflare R2 / S3 Presigned URL Generator
+app.post('/api/s3/presigned-url', async (req, res) => {
+  try {
+    const { R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_DOMAIN } = process.env;
+    
+    if (!R2_ENDPOINT || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
+      return res.status(500).json({ error: 'R2 storage credentials are not fully configured in the environment.' });
+    }
+
+    const { fileName, contentType } = req.body;
+    if (!fileName || !contentType) {
+      return res.status(400).json({ error: 'fileName and contentType are required.' });
+    }
+
+    // Ensure endpoint has a protocol
+    const endpoint = R2_ENDPOINT.startsWith('http') ? R2_ENDPOINT : `https://${R2_ENDPOINT}`;
+    
+    const s3 = new S3Client({
+      region: 'auto', // R2 requires 'auto'
+      endpoint,
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+      },
+    });
+
+    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: uniqueFileName,
+      ContentType: contentType,
+    });
+
+    const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 }); // 1 hour expiration
+    
+    // Determine the public URL where the file will be accessible after upload
+    let publicUrl = '';
+    if (R2_PUBLIC_DOMAIN) {
+      const domain = R2_PUBLIC_DOMAIN.startsWith('http') ? R2_PUBLIC_DOMAIN : `https://${R2_PUBLIC_DOMAIN}`;
+      publicUrl = `${domain.replace(/\/$/, '')}/${uniqueFileName}`;
+    } else {
+      // Fallback to trying to use the endpoint directly if no public domain is set
+      publicUrl = `${endpoint.replace(/\/$/, '')}/${R2_BUCKET_NAME}/${uniqueFileName}`;
+    }
+
+    res.json({
+      uploadUrl: signedUrl,
+      publicUrl: publicUrl
+    });
+  } catch (err: any) {
+    console.error('Failed to generate presigned URL', err);
+    res.status(500).json({ error: err.message || 'Internal server error generating upload URL' });
+  }
 });
 
 // TikTok Status & Configuration

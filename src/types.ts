@@ -1,19 +1,29 @@
 export type TattooCategoryKey =
+  | 'black_and_grey'
   | 'realism'
+  | 'color'
+  | 'traditional'
   | 'coverups'
+  | 'tribal'
+  | 'mechanical'
+  | 'steampunk'
+  | 'new_skool'
   | 'portraits'
-  | 'dark_neo'
-  | 'machines'
-  | 'biomech';
+  | 'artwork'
+  | 'photography'
+  | 'digital_graphics'
+  | 'miscellaneous';
 
 export type ArtCategoryKey = 'all' | TattooCategoryKey;
 
 export interface GalleryItem {
   id: string;
   title: string;
+  clientName?: string;
   category: TattooCategoryKey;
   categoryLabel: string;
   imageUrl: string;
+  additionalImages?: string[]; // Multiple images for this project
   beforeImageUrl?: string; // For cover-ups before/after comparison
   tags: string[];
   description: string;
@@ -73,6 +83,7 @@ export interface Booking {
   finalEstimatedPrice: number;
   preferredDate: string;
   preferredTimeSlot: string;
+  depositStatus?: 'unpaid' | 'paid' | 'forfeited';
   status: 'pending' | 'confirmed' | 'in_chair' | 'completed' | 'cancelled';
   notes?: string;
   createdAt: string;
@@ -209,6 +220,7 @@ export interface PaymentTransaction {
   paymentMethod: 'cash_app' | 'card_pos' | 'apple_pay' | 'cash';
   cashAppHandle?: string;
   note?: string;
+  depositStatus?: 'unpaid' | 'paid' | 'forfeited';
   status: 'completed' | 'pending' | 'refunded';
   createdAt: string;
 }

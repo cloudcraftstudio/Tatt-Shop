@@ -1,0 +1,18 @@
+--- src/services/storage.ts
++++ src/services/storage.ts
+@@ -298,2 +298,7 @@
+ 
++  deleteJournalPost(id: string): void {
++    const posts = this.getJournalPosts().filter(p => p.id !== id);
++    this.saveJournalPosts(posts);
++    deleteFromFirestore("journal", id);
++  },
++
+@@ -350,2 +355,3 @@
+     this.saveTikTokReels(reels);
++    deleteFromFirestore("reels", id);
+   },
+@@ -628,2 +634,3 @@
+       saveToFirestore("waivers", updated);
++      deleteFromFirestore("waivers", id);
+       

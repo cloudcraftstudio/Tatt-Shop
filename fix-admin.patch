@@ -1,0 +1,7 @@
+--- src/components/AdminDashboard.tsx
++++ src/components/AdminDashboard.tsx
+@@ -1435,2 +1435,2 @@
+-                     await setDoc(doc(db, 'testimonials', 'data'), { items: storageService.getTestimonials() }).catch(e => console.error(e));
+-                     await setDoc(doc(db, 'waivers', 'data'), { items: storageService.getWaivers() }).catch(e => console.error(e));
++                     storageService.saveTestimonials(storageService.getTestimonials());
++                     storageService.saveWaivers(storageService.getWaivers());

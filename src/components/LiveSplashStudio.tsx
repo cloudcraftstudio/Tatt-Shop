@@ -1,3 +1,4 @@
+import { uploadLargeMedia } from "../services/mediaStore";
 import React, { useState } from 'react';
 import {
   Sparkles,
@@ -119,7 +120,7 @@ export const LiveSplashStudio: React.FC<LiveSplashStudioProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const base64 = await storageService.fileToBase64(file);
+      const base64 = await uploadLargeMedia(file);
       setNewPhotoUrl(base64);
     } catch (err) {
       console.error(err);
@@ -315,13 +316,13 @@ export const LiveSplashStudio: React.FC<LiveSplashStudioProps> = ({
                   <Upload className="w-4 h-4" />
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/*"
                     className="hidden"
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
                       try {
-                        const base64 = await storageService.fileToBase64(file);
+                        const base64 = await uploadLargeMedia(file);
                         handleSliderChange('avatarUrl', base64);
                         onShowNotification('Avatar image uploaded successfully!');
                       } catch (err) {
@@ -619,7 +620,7 @@ export const LiveSplashStudio: React.FC<LiveSplashStudioProps> = ({
                   </label>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/*"
                     onChange={handleFileUpload}
                     className="block w-full text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-mono file:bg-cyan-950 file:text-cyan-300 hover:file:bg-cyan-900 cursor-pointer"
                   />

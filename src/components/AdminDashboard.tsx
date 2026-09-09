@@ -1,8 +1,11 @@
+import { uploadLargeMedia } from "../services/mediaStore";
+import { MediaRenderer } from "./MediaRenderer";
+import { CATEGORY_LABELS, CATEGORY_OPTIONS } from "../data/categories";
 import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   PlusCircle,
-  Trash2,
+  Trash2, Pencil,
   Edit3,
   Image,
   CalendarCheck,
@@ -60,6 +63,8 @@ interface AdminDashboardProps {
   onSplashSettingsUpdated?: (settings: SplashScreenSettings) => void;
   onOpenApkModal?: () => void;
   onTriggerSplash?: () => void;
+  onAdminAuthChange?: (session: AdminAuthSession) => void;
+  onBackToStudio?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -71,7 +76,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshData,
   onSplashSettingsUpdated,
   onOpenApkModal,
-  onTriggerSplash
+  onTriggerSplash,
+  onAdminAuthChange
 }) => {
   const [authSession, setAuthSession] = useState<AdminAuthSession>(() => storageService.getAdminAuth());
   const [activeTab, setActiveTab] = useState<'gallery' | 'bookings' | 'calendar' | 'pos' | 'tiktok' | 'livestudio' | 'splash' | 'profile' | 'journal' | 'backup'>('gallery');
@@ -99,19 +105,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // --- GALLERY FORM STATE ---
   const [newTitle, setNewTitle] = useState('');
+  const [newClientName, setNewClientName] = useState('');
   const [newCategory, setNewCategory] = useState<TattooCategoryKey>('realism');
   const [newDesc, setNewDesc] = useState('');
   const [newPlacement, setNewPlacement] = useState('Forearm');
   const [newSessionHours, setNewSessionHours] = useState(4);
   const [newTags, setNewTags] = useState('realism, blackandgrey');
   const [newImageUrl, setNewImageUrl] = useState('');
+  const [newAdditionalImages, setNewAdditionalImages] = useState<string[]>([]);
   const [newIsCoverUp, setNewIsCoverUp] = useState(false);
   const [newBeforeImageUrl, setNewBeforeImageUrl] = useState('');
 
   const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isBefore = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const base64 = await storageService.fileToBase64(file);
+    const base64 = await uploadLargeMedia(file);
     if (isBefore) {
       setNewBeforeImageUrl(base64);
     } else {
@@ -119,28 +127,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleAdditionalImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const newBase64Images: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const base64 = await uploadLargeMedia(files[i]);
+        newBase64Images.push(base64);
+      } catch (err) {
+        console.error('Failed to process additional image', err);
+        alert((err as Error).message || 'Failed to process media file. Check size limits.');
+      }
+    }
+    
+    setNewAdditionalImages(prev => [...prev, ...newBase64Images]);
+  };
+
   const handleAddGalleryItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newImageUrl.trim()) {
-      showNotification('Title and an image (URL or uploaded file) are required.');
+      showNotification('Title and a main image are required.');
       return;
     }
 
-    const categoryLabels: Record<ArtCategoryKey, string> = {
-      all: 'All Masterpieces',
-      realism: 'Black & Grey Realism',
-      coverups: 'Cover-Up Transformation',
-      portraits: 'Portraits & Figures',
-      dark_neo: 'Dark Neo & Skulls',
-      machines: 'Old Skool & Machines',
-      biomech: 'Biomechanical & Voltage'
-    };
-
     storageService.createGalleryItem({
       title: newTitle.trim(),
+      clientName: newClientName.trim() || undefined,
       category: newCategory,
-      categoryLabel: categoryLabels[newCategory] || 'Custom Tattoo',
+      categoryLabel: CATEGORY_LABELS[newCategory] || 'Custom Tattoo',
       imageUrl: newImageUrl,
+      additionalImages: newAdditionalImages.length > 0 ? newAdditionalImages : undefined,
       description: newDesc.trim() || 'Custom piece crafted by Tex at Lights Out Tattoo.',
       sessionHours: Number(newSessionHours),
       placement: newPlacement,
@@ -152,17 +170,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showNotification('New tattoo piece added to portfolio gallery!');
     // Reset
     setNewTitle('');
+    setNewClientName('');
     setNewDesc('');
     setNewImageUrl('');
+    setNewAdditionalImages([]);
     setNewBeforeImageUrl('');
     setNewIsCoverUp(false);
     onRefreshData();
   };
 
-  const handleDeleteGalleryItem = (id: string) => {
-    // Note: window.confirm is blocked in some iframe environments, bypassing for now
-    storageService.deleteGalleryItem(id);
-    showNotification('Piece deleted.');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
+
+  const handleDeleteGalleryItem = async (id: string) => {
+    await storageService.deleteGalleryItem(id);
+    showNotification('Piece deleted from portfolio.');
+    onRefreshData();
+  };
+
+  const handleClearAllGallery = async () => {
+    setIsClearingAll(true);
+    await storageService.clearAllGallery();
+    showNotification('All portfolio images cleared. You can now add your own!');
+    setShowClearConfirm(false);
+    setIsClearingAll(false);
     onRefreshData();
   };
 
@@ -233,9 +264,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleDeleteJournalPost = (id: string) => {
     // Note: window.confirm is blocked in some iframe environments, bypassing for now
-    const currentPosts = storageService.getJournalPosts();
-    storageService.saveJournalPosts(currentPosts.filter(p => p.id !== id));
+    storageService.deleteJournalPost(id);
     showNotification('Journal post removed.');
+    onRefreshData();
+  };
+
+  // --- EDIT GALLERY MODAL ---
+  const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
+  
+  const handleEditAdditionalImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingGalleryItem) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const newBase64Images: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const base64 = await uploadLargeMedia(files[i]);
+        newBase64Images.push(base64);
+      } catch (err) {
+        console.error('Failed to process additional image', err);
+        alert((err as Error).message || 'Failed to process media file. Check size limits.');
+      }
+    }
+    
+    setEditingGalleryItem(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        additionalImages: [...(prev.additionalImages || []), ...newBase64Images]
+      };
+    });
+  };
+
+  const handleUpdateGalleryItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGalleryItem) return;
+    if (!editingGalleryItem.title.trim() || !editingGalleryItem.imageUrl.trim()) {
+      showNotification('Title and a main image are required.');
+      return;
+    }
+    
+    const updated = {
+      ...editingGalleryItem,
+      description: editingGalleryItem.description || '',
+      categoryLabel: CATEGORY_LABELS[editingGalleryItem.category] || 'Custom Tattoo'
+    };
+    
+    await storageService.updateGalleryItem(updated);
+    setEditingGalleryItem(null);
+    showNotification('Gallery piece updated successfully.');
     onRefreshData();
   };
 
@@ -261,7 +339,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const base64 = await storageService.fileToBase64(file);
+      const base64 = await uploadLargeMedia(file);
       setEditAvatarUrl(base64);
       showNotification('Artist portrait updated! Click Save Profile to apply.');
     } catch (err) {
@@ -274,7 +352,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const base64 = await storageService.fileToBase64(file);
+      const base64 = await uploadLargeMedia(file);
       setEditBannerUrl(base64);
       showNotification('Studio banner updated! Click Save Profile to apply.');
     } catch (err) {
@@ -341,6 +419,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <AdminLoginGate
           onLoginSuccess={session => {
             setAuthSession(session);
+            onAdminAuthChange?.(session);
             showNotification(
               session.method === 'tiktok'
                 ? `Logged in as ${session.username || '@lightsouttattoo'} via TikTok!`
@@ -420,7 +499,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             type="button"
             onClick={() => {
               storageService.clearAdminAuth();
-              setAuthSession({ isAuthenticated: false, method: 'pin', loginTime: '' });
+              const loggedOutSession = { isAuthenticated: false, method: 'pin' as const, loginTime: '' };
+              setAuthSession(loggedOutSession);
+              onAdminAuthChange?.(loggedOutSession);
               showNotification('Studio locked. Signed out of Admin.');
             }}
             className="px-3 py-1.5 rounded-xl bg-gray-900 hover:bg-red-950/80 border border-gray-700 hover:border-red-500 text-gray-300 hover:text-red-300 font-mono text-xs transition flex items-center gap-1.5"
@@ -540,12 +621,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={e => setNewCategory(e.target.value as any)}
                     className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:outline-none focus:border-cyan-400"
                   >
-                    <option value="realism">Black & Grey Realism</option>
-                    <option value="coverups">Cover-Up Transformations</option>
-                    <option value="portraits">Portraits & Figures</option>
-                    <option value="dark_neo">Dark Neo & Skulls</option>
-                    <option value="machines">Old Skool & Machines</option>
-                    <option value="biomech">Biomechanical & Voltage</option>
+                    {CATEGORY_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -557,10 +635,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <span className="block text-[11px] text-gray-400 mb-1">Option A: Upload Image File</span>
+                    <span className="block text-[11px] text-gray-400 mb-1">Option A: Upload Image/Video File</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       onChange={e => handleImageFileUpload(e, false)}
                       className="text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-950 file:text-cyan-300 hover:file:bg-cyan-900"
                     />
@@ -579,12 +657,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 {newImageUrl && (
                   <div className="mt-2 flex items-center gap-3">
-                    <img
+                    <MediaRenderer
                       src={newImageUrl}
                       alt="Preview"
                       className="w-16 h-16 object-cover rounded-lg border border-cyan-400"
+                      autoPlay={false}
                     />
-                    <span className="text-xs text-emerald-400 font-mono">Image loaded ready!</span>
+                    <span className="text-xs text-emerald-400 font-mono">Media loaded ready!</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Additional Portfolio Images for the same project */}
+              <div className="p-3.5 rounded-xl bg-[#091122] border border-cyan-500/30 space-y-3">
+                <label className="block text-xs font-mono text-cyan-300 font-bold">
+                  Additional Images/Videos (Optional - creates a swipeable gallery for this piece):
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleAdditionalImagesUpload}
+                  className="text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-950 file:text-cyan-300 hover:file:bg-cyan-900"
+                />
+                {newAdditionalImages.length > 0 && (
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    {newAdditionalImages.map((img, idx) => (
+                      <div key={idx} className="relative group">
+                        <MediaRenderer src={img} alt={`Additional ${idx}`} className="w-12 h-12 object-cover rounded border border-cyan-400/50" autoPlay={false} />
+                        <button
+                          type="button"
+                          onClick={() => setNewAdditionalImages(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex items-center text-xs text-emerald-400 font-mono pl-2">
+                      {newAdditionalImages.length} extra image(s) attached
+                    </div>
                   </div>
                 )}
               </div>
@@ -610,7 +722,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       onChange={e => handleImageFileUpload(e, true)}
                       className="text-xs text-gray-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:bg-cyan-950 file:text-cyan-300"
                     />
@@ -684,198 +796,163 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Current Gallery List / Deletion manager */}
           <div className="p-4 sm:p-6 rounded-2xl bg-[#080d1a] border border-cyan-500/30">
-            <h3 className="font-heading font-black text-base text-white mb-3 flex items-center justify-between">
-              <span>Current Portfolio Works ({galleryItems.length})</span>
-              <span className="text-xs font-mono text-cyan-400">Manage or remove</span>
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-cyan-500/20">
+              <div>
+                <h3 className="font-heading font-black text-base text-white">
+                  Current Portfolio Works ({galleryItems.length})
+                </h3>
+                <span className="text-xs font-mono text-cyan-400">Manage or remove individual pieces</span>
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {galleryItems.map(item => (
-                <div
-                  key={item.id}
-                  className="p-2.5 rounded-xl bg-black/50 border border-cyan-500/20 flex items-center gap-3"
-                >
-                  <img
-                    src={item.imageUrl}
-                    alt={item.title}
-                    className="w-14 h-14 object-cover rounded-lg shrink-0 border border-cyan-500/30"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-heading font-bold text-xs text-white truncate">
-                      {item.title}
-                    </h4>
-                    <span className="text-[10px] font-mono text-cyan-400 block truncate">
-                      {item.categoryLabel}
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-mono">
-                      ~{item.sessionHours} hrs • {item.placement}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteGalleryItem(item.id)}
-                    className="p-1.5 rounded-lg bg-red-950/60 text-red-400 hover:bg-red-900 border border-red-500/30 transition"
-                    title="Delete piece"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+              {galleryItems.length > 0 && (
+                <div className="flex items-center gap-2">
+                  {!showClearConfirm ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowClearConfirm(true)}
+                      className="px-3 py-1.5 rounded-xl bg-red-950/60 border border-red-500/50 text-red-400 hover:text-white hover:bg-red-900 text-xs font-mono transition flex items-center gap-1.5"
+                      title="Clear all images in the gallery so you can start clean"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove All Gallery Images</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 p-1.5 rounded-xl bg-red-950/90 border border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+                      <span className="text-xs text-red-300 font-mono pl-1">
+                        Wipe all {galleryItems.length} photos?
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isClearingAll}
+                        onClick={handleClearAllGallery}
+                        className="px-2.5 py-1 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-500 transition font-mono disabled:opacity-50"
+                      >
+                        {isClearingAll ? 'Wiping...' : 'Yes, Delete All'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isClearingAll}
+                        onClick={() => setShowClearConfirm(false)}
+                        className="px-2 py-1 rounded-lg bg-gray-800 text-gray-300 text-xs hover:text-white transition font-mono"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
+
+            {galleryItems.length === 0 ? (
+              <div className="py-12 px-4 text-center rounded-xl bg-black/40 border border-cyan-500/20 flex flex-col items-center justify-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                  <Image className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-heading font-bold text-sm text-white">Gallery is Currently Empty</h4>
+                  <p className="text-xs font-mono text-gray-400 mt-1 max-w-md mx-auto">
+                    All default mock images have been cleared. You have a completely clean slate to upload your real tattoo portfolio!
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkModalOpen(true)}
+                  className="px-4 py-2.5 rounded-xl bg-cyan-500 text-black font-heading font-black text-xs uppercase tracking-wider hover:bg-cyan-400 transition flex items-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.4)]"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Bulk Upload Tattoo Photos</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {galleryItems.map(item => (
+                  <div
+                    key={item.id}
+                    className="p-2.5 rounded-xl bg-black/50 border border-cyan-500/20 hover:border-cyan-500/40 transition flex items-center gap-3 group"
+                  >
+                    <MediaRenderer src={item.imageUrl} alt={item.title} className="w-12 h-12 rounded object-cover border border-cyan-500/40" autoPlay={false} />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-heading font-bold text-white truncate">{item.title}</h4>
+                      <p className="text-[10px] text-gray-400 font-mono truncate">{item.categoryLabel}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingGalleryItem(item)}
+                        className="p-1.5 rounded-lg bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 transition"
+                        title="Edit Piece"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await storageService.deleteGalleryItem(item.id);
+                          onRefreshData();
+                        }}
+                        className="p-1.5 rounded-lg bg-red-900/50 text-red-400 hover:text-white hover:bg-red-600 transition"
+                        title="Delete Piece"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+
         </div>
       )}
 
-      {/* --- TAB 2: CLIENT BOOKINGS --- */}
+      {/* --- TAB: BOOKINGS MANAGEMENT --- */}
       {activeTab === 'bookings' && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h3 className="font-heading font-black text-lg text-white">
-                Client Consultation Inquiries & Appointments ({bookings.length})
+        <div className="space-y-6">
+          {/* ======================= */}
+          {/*   BOOKINGS MANAGEMENT   */}
+          {/* ======================= */}
+          <div className="bg-[#091122]/90 backdrop-blur-md rounded-2xl border border-cyan-500/20 p-4 sm:p-6 shadow-xl">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h3 className="font-heading font-black text-2xl text-white flex items-center gap-3">
+                <CalendarIcon className="w-6 h-6 text-cyan-400" />
+                <span>Booking Requests ({bookings.length})</span>
               </h3>
-              <p className="text-xs text-gray-400 font-mono">
-                Track appointments, verify $200 security deposits, and sync confirmed dates to Google Calendar
-              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab('calendar')}
-                className="px-3.5 py-1.5 rounded-xl bg-cyan-950 border border-cyan-400 text-cyan-300 font-mono text-xs font-bold hover:bg-cyan-900 transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(0,240,255,0.3)]"
-              >
-                <CalendarIcon className="w-3.5 h-3.5" />
-                <span>Open Google Calendar Sync</span>
-              </button>
-            </div>
-          </div>
 
-          {/* Quick Policy Notice Banner */}
-          <div className="p-3.5 rounded-xl bg-[#09152b] border border-cyan-500/30 flex items-start gap-3 text-xs font-mono text-gray-300">
-            <ShieldCheck className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <strong className="text-cyan-300">Studio Deposit & Reschedule Policy:</strong>
-              <p className="text-gray-400 text-[11px] leading-relaxed">
-                $200 nonrefundable security deposit locks the chair. If a client misses an appointment without advance notification, their spot and deposit are forfeited. Reschedules are accepted with proper advance notice.
-              </p>
-            </div>
-          </div>
-
-          {bookings.length === 0 ? (
-            <div className="p-8 text-center rounded-2xl bg-[#080d1a] border border-cyan-500/20 text-gray-400 text-xs font-mono">
-              No booking requests logged yet. New submissions will appear here in real time.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {bookings.map(b => {
-                const depositStatus = b.securityDepositStatus || 'unpaid';
-                return (
-                  <div
-                    key={b.id}
-                    className="p-4 rounded-2xl bg-[#080d1a] border border-cyan-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4"
-                  >
-                    <div className="space-y-2 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="font-heading font-bold text-base text-white">
-                          {b.clientName}
-                        </h4>
-                        <span
-                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase ${
-                            b.status === 'pending'
-                              ? 'bg-amber-950 text-amber-300 border border-amber-500/50'
-                              : b.status === 'confirmed'
-                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/50'
-                              : 'bg-cyan-950 text-cyan-300 border border-cyan-500/50'
-                          }`}
-                        >
-                          {b.status}
-                        </span>
-                        {b.isCoverUp && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-500/40">
-                            Cover-Up
-                          </span>
-                        )}
-
-                        {/* Deposit Status Badge */}
-                        <span
-                          className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full uppercase border ${
-                            depositStatus === 'paid'
-                              ? 'bg-emerald-950/80 text-emerald-300 border-emerald-400/50 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
-                              : depositStatus === 'forfeited'
-                              ? 'bg-rose-950/80 text-rose-300 border-rose-400/50 shadow-[0_0_8px_rgba(244,63,94,0.3)]'
-                              : 'bg-amber-950/80 text-amber-300 border-amber-400/50'
-                          }`}
-                        >
-                          {depositStatus === 'paid'
-                            ? 'Deposit: $200 Paid ✓'
-                            : depositStatus === 'forfeited'
-                            ? 'Deposit: Forfeited (No-Show) ✕'
-                            : 'Deposit: $200 Unpaid ⏳'}
-                        </span>
-
-                        {/* Calendar Sync Status */}
-                        {b.googleCalendarEventId ? (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-400/50 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-cyan-400" />
-                            <span>G-Cal Synced</span>
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab('calendar')}
-                            className="text-[10px] font-mono px-2 py-0.5 rounded bg-black text-gray-400 border border-gray-700 hover:border-cyan-400 hover:text-cyan-300 transition flex items-center gap-1"
-                          >
-                            <CalendarIcon className="w-3 h-3" />
-                            <span>Sync to G-Cal</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-gray-300">
-                        <strong>Concept:</strong> {b.tattooIdea}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-gray-400">
-                        <a
-                          href={`tel:${b.phone.replace(/[^0-9]/g, '')}`}
-                          className="flex items-center gap-1 text-cyan-400 hover:underline"
-                        >
-                          <Phone className="w-3 h-3" />
-                          <span>{b.phone}</span>
-                        </a>
-                        {b.email && (
-                          <span className="flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            <span>{b.email}</span>
-                          </span>
-                        )}
-                        <span>Placement: {b.placement}</span>
-                        <span>Date: {b.preferredDate || 'Flexible'} ({b.preferredTimeSlot})</span>
-                        <span className="text-emerald-400 font-bold">
-                          Quote: ~${b.finalEstimatedPrice} (-15%)
-                        </span>
-                      </div>
-
-                      {/* Photos if uploaded */}
-                      {(b.coverUpPhotoUrl || b.referencePhotoUrl) && (
-                        <div className="flex items-center gap-3 pt-1">
-                          {b.coverUpPhotoUrl && (
-                            <a href={b.coverUpPhotoUrl} target="_blank" rel="noreferrer">
-                              <img
-                                src={b.coverUpPhotoUrl}
-                                alt="Tattoo to cover"
-                                className="w-12 h-12 rounded object-cover border border-red-400"
-                                title="Tattoo to cover"
-                              />
-                            </a>
-                          )}
-                          {b.referencePhotoUrl && (
+            {bookings.length === 0 ? (
+              <p className="text-sm text-gray-400 font-mono">No booking requests found.</p>
+            ) : (
+              <div className="space-y-4">
+                {bookings.map(b => {
+                  const depositStatus = b.depositStatus || 'unpaid';
+                  return (
+                    <div key={b.id} className="p-4 rounded-xl bg-black/60 border border-cyan-500/30 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-base font-heading font-bold text-white">{b.clientName}</h4>
+                          <span className="text-xs font-mono px-2 py-0.5 rounded bg-gray-800 text-gray-300">{b.phone}</span>
+                          <span className="text-xs font-mono px-2 py-0.5 rounded bg-gray-800 text-gray-300">{b.email}</span>
+                        </div>
+                        <p className="text-sm text-gray-300">
+                          <span className="text-cyan-400 font-bold">Idea:</span> {b.tattooIdea}
+                        </p>
+                        <div className="flex flex-wrap gap-2 text-xs font-mono text-gray-400">
+                          <span>Placement: {b.placement}</span>
+                          <span>Size: {b.approximateSize}</span>
+                          {b.isCoverUp && <span className="text-red-400">Cover-Up</span>}
+                        </div>
+                        
+                        {(b.coverUpPhotoUrl || b.referencePhotoUrl) && (
+                          <div className="flex items-center gap-3 pt-1">
+                            {b.coverUpPhotoUrl && (
+                              <a href={b.coverUpPhotoUrl} target="_blank" rel="noreferrer">
+                                <MediaRenderer src={b.coverUpPhotoUrl} alt="Cover up uploaded" className="w-12 h-12 rounded object-cover border border-red-400" autoPlay={false} />
+                              </a>
+                            )}
+                            {b.referencePhotoUrl && (
                             <a href={b.referencePhotoUrl} target="_blank" rel="noreferrer">
-                              <img
-                                src={b.referencePhotoUrl}
-                                alt="Reference uploaded"
-                                className="w-12 h-12 rounded object-cover border border-cyan-400"
-                                title="Reference Photo"
-                              />
+                              <MediaRenderer src={b.referencePhotoUrl} alt="Reference uploaded" className="w-12 h-12 rounded object-cover border border-cyan-400" autoPlay={false} />
                             </a>
                           )}
                         </div>
@@ -939,6 +1016,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               })}
             </div>
           )}
+        </div>
         </div>
       )}
 
@@ -1225,7 +1303,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span>Choose Photo File</span>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/*"
                     onChange={handleAvatarUpload}
                     className="hidden"
                   />
@@ -1322,9 +1400,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 onChange={e => setEditLiveStatus(e.target.value as any)}
                 className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono"
               >
-                <option value="available">Available / Booking Consultations</option>
+                <option value="open_slots">Chair is Open / Booking Consultations</option>
                 <option value="in_chair">In Chair (Tattooing Live)</option>
-                <option value="booked">Fully Booked for the Week</option>
+                <option value="designing">Designing Custom Work</option>
+                <option value="consulting">In Consultation</option>
+                <option value="studio_closed">Studio Closed</option>
               </select>
             </div>
           </div>
@@ -1431,11 +1511,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                      storageService.saveBookings(storageService.getBookings());
                      storageService.saveTransactions(storageService.getTransactions());
                      
-                     // Manually hit firestore for testimonials and waivers since we don't have bulk save functions for those
-                     const { doc, setDoc } = await import('firebase/firestore');
-                     const { db } = await import('../firebase');
-                     await setDoc(doc(db, 'testimonials', 'data'), { items: storageService.getTestimonials() }).catch(e => console.error(e));
-                     await setDoc(doc(db, 'waivers', 'data'), { items: storageService.getWaivers() }).catch(e => console.error(e));
+                     // Sync testimonials and waivers properly via storageService methods
+                     storageService.saveTestimonials(storageService.getTestimonials());
+                     storageService.saveWaivers(storageService.getWaivers());
                      
                      storageService.saveSplashScreenSettings(storageService.getSplashScreenSettings());
                      showNotification('All local data successfully pushed to Firebase Cloud!');
@@ -1531,6 +1609,154 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           showNotification('Portfolio gallery updated with bulk images!');
         }}
       />
+
+      {/* Edit Gallery Item Modal */}
+      {editingGalleryItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin bg-[#080d1a] border border-cyan-500/30 rounded-2xl p-4 sm:p-6 shadow-[0_0_40px_rgba(0,240,255,0.15)] relative">
+            <button
+              onClick={() => setEditingGalleryItem(null)}
+              className="absolute top-4 right-4 p-2 bg-gray-900 rounded-full text-gray-400 hover:text-white transition"
+            >
+              ×
+            </button>
+            <h3 className="font-heading font-black text-xl text-white mb-4">Edit Portfolio Piece</h3>
+            
+            <form onSubmit={handleUpdateGalleryItem} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-mono text-gray-300 mb-1">Title *</label>
+                  <input
+                    type="text"
+                    value={editingGalleryItem.title}
+                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, title: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-mono text-gray-300 mb-1">Client Name</label>
+                  <input
+                    type="text"
+                    placeholder="Optional"
+                    value={editingGalleryItem.clientName || ''}
+                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, clientName: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-mono text-gray-300 mb-1">Category *</label>
+                  <select
+                    value={editingGalleryItem.category}
+                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, category: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                  >
+                    {CATEGORY_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-mono text-gray-300 mb-1">Main Image URL *</label>
+                <input
+                  type="text"
+                  value={editingGalleryItem.imageUrl}
+                  onChange={e => setEditingGalleryItem({ ...editingGalleryItem, imageUrl: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                  required
+                />
+              </div>
+
+              {/* Additional Portfolio Images for the same project (Edit Modal) */}
+              <div className="p-3.5 rounded-xl bg-[#091122] border border-cyan-500/30 space-y-3">
+                <label className="block text-xs font-mono text-cyan-300 font-bold">
+                  Additional Images/Videos (Upload):
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleEditAdditionalImagesUpload}
+                  className="text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-950 file:text-cyan-300 hover:file:bg-cyan-900"
+                />
+                {editingGalleryItem.additionalImages && editingGalleryItem.additionalImages.length > 0 && (
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    {editingGalleryItem.additionalImages.map((img, idx) => (
+                      <div key={idx} className="relative group">
+                        <MediaRenderer src={img} alt={`Additional ${idx}`} className="w-12 h-12 object-cover rounded border border-cyan-400/50" autoPlay={false} />
+                        <button
+                          type="button"
+                          onClick={() => setEditingGalleryItem(prev => {
+                            if (!prev || !prev.additionalImages) return prev;
+                            return { ...prev, additionalImages: prev.additionalImages.filter((_, i) => i !== idx) };
+                          })}
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex items-center text-xs text-emerald-400 font-mono pl-2">
+                      {editingGalleryItem.additionalImages.length} extra media attached
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-gray-300 mb-1">Description</label>
+                <textarea
+                  value={editingGalleryItem.description || ''}
+                  onChange={e => setEditingGalleryItem({ ...editingGalleryItem, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-mono text-gray-300 mb-1">Session Hours</label>
+                  <input
+                    type="number"
+                    value={editingGalleryItem.sessionHours || ''}
+                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, sessionHours: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-mono text-gray-300 mb-1">Placement (e.g., Forearm)</label>
+                  <input
+                    type="text"
+                    value={editingGalleryItem.placement || ''}
+                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, placement: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-cyan-500/20 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingGalleryItem(null)}
+                  className="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 hover:text-white transition font-mono text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 rounded-xl bg-cyan-500 text-black font-bold font-mono text-xs hover:bg-cyan-400 transition shadow-[0_0_15px_rgba(0,240,255,0.4)]"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* POS Payment Gateway Modal (Invoked from Booking list) */}
       <LightsOutPayPortal

@@ -100,7 +100,11 @@ export const MatrixSplashScreen: React.FC<MatrixSplashScreenProps> = ({
     };
 
     handleResize();
-    const observer = new ResizeObserver(() => handleResize());
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        handleResize();
+      });
+    });
     if (containerRef.current) observer.observe(containerRef.current);
 
     // Matrix Rain Frame Loop
@@ -285,28 +289,27 @@ export const MatrixSplashScreen: React.FC<MatrixSplashScreenProps> = ({
 
       {/* 5. TOP BAR ACTIONS: Studio Emblem, Verified Artist & Direct Skip */}
       <header className="sticky top-0 z-40 p-2.5 sm:p-5 flex items-center justify-between bg-black/70 backdrop-blur-md border-b border-cyan-500/20">
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl bg-black/80 border-2 border-cyan-400 flex items-center justify-center text-cyan-300 shadow-[0_0_15px_#00f0ff]">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl bg-black/80 border-2 border-cyan-400 flex items-center justify-center text-cyan-300 shadow-[0_0_15px_#00f0ff] shrink-0">
             <BustedLightbulbIcon size={22} glow={true} />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <span className="font-heading font-black text-xs sm:text-base tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-cyan-200">
                 LIGHTS OUT
               </span>
-              <span className="text-[8px] sm:text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-400 text-cyan-300 font-bold">
+              <span className="text-[8px] sm:text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-400 text-cyan-300 font-bold shrink-0">
                 TATTOO
               </span>
             </div>
-            <p className="text-[9px] sm:text-[10px] font-tech text-cyan-300/80 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-              Winchester, VA • Lead Artist Tex
+            <p className="text-[9px] sm:text-[10px] font-tech text-cyan-300/80 flex items-center gap-1 min-w-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping shrink-0" />
+              <span className="truncate">Winchester, VA • Lead Artist Tex</span>
             </p>
           </div>
         </div>
-
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {isPreview && onClosePreview && (
             <button
               onClick={onClosePreview}

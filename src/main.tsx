@@ -14,8 +14,9 @@ window.console.error = (...args) => {
 };
 
 window.addEventListener('error', (e) => {
-  if (e.message.includes(resizeObserverLoopErr) || e.message.includes(resizeObserverLoopErr2)) {
+  if (e.message === resizeObserverLoopErr || e.message === resizeObserverLoopErr2 || e.message.includes('ResizeObserver')) {
     e.stopImmediatePropagation();
+    e.preventDefault();
   }
 });
 
