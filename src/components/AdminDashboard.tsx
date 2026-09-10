@@ -30,6 +30,7 @@ import {
   DollarSign,
   Video,
   Eye,
+  Loader2,
   X
 } from 'lucide-react';
 import {
@@ -298,17 +299,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         newBase64Images.push(base64);
       } catch (err) {
         console.warn('Failed to process additional image', err);
-        alert((err as Error).message || 'Failed to process media file. Check size limits.');
+        showNotification((err as Error).message || 'Failed to process media file. Check size limits.');
       }
     }
     
-    setEditingGalleryItem(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        additionalImages: [...(prev.additionalImages || []), ...newBase64Images]
-      };
-    });
+    if (newBase64Images.length > 0) {
+      setEditingGalleryItem(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          additionalImages: [...(prev.additionalImages || []), ...newBase64Images]
+        };
+      });
+      showNotification(`✓ ${newBase64Images.length} media file(s) attached! Remember to click "Save Changes" below.`);
+    }
     setIsUploadingMedia(false);
   };
 
@@ -1627,143 +1631,158 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* Edit Gallery Item Modal */}
       {editingGalleryItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin bg-[#080d1a] border border-cyan-500/30 rounded-2xl p-4 sm:p-6 shadow-[0_0_40px_rgba(0,240,255,0.15)] relative">
-            <button
-              onClick={() => setEditingGalleryItem(null)}
-              className="absolute top-4 right-4 p-2 bg-gray-900 rounded-full text-gray-400 hover:text-white transition"
-            >
-              ×
-            </button>
-            <h3 className="font-heading font-black text-xl text-white mb-4">Edit Portfolio Piece</h3>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-4 pb-24 sm:pb-6 bg-black/85 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[calc(100dvh-4.5rem)] sm:max-h-[calc(100dvh-5rem)] flex flex-col bg-[#080d1a] border-2 border-cyan-400/60 rounded-2xl shadow-[0_0_50px_rgba(0,240,255,0.25)] relative my-auto overflow-hidden text-left">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-20 flex items-center justify-between p-4 sm:p-5 bg-[#080d1a]/95 backdrop-blur-md border-b border-cyan-500/30 shrink-0">
+              <h3 className="font-heading font-black text-lg sm:text-xl text-white">Edit Portfolio Piece</h3>
+              <button
+                onClick={() => setEditingGalleryItem(null)}
+                className="p-1.5 sm:p-2 bg-gray-900 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-cyan-400 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             
-            <form onSubmit={handleUpdateGalleryItem} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={handleUpdateGalleryItem} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-mono text-gray-300 mb-1">Title *</label>
+                    <input
+                      type="text"
+                      value={editingGalleryItem.title}
+                      onChange={e => setEditingGalleryItem({ ...editingGalleryItem, title: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-gray-300 mb-1">Client Name</label>
+                    <input
+                      type="text"
+                      placeholder="Optional"
+                      value={editingGalleryItem.clientName || ''}
+                      onChange={e => setEditingGalleryItem({ ...editingGalleryItem, clientName: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-mono text-gray-300 mb-1">Category *</label>
+                    <select
+                      value={editingGalleryItem.category}
+                      onChange={e => setEditingGalleryItem({ ...editingGalleryItem, category: e.target.value as any })}
+                      className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                    >
+                      {CATEGORY_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
                 <div>
-                  <label className="block text-xs font-mono text-gray-300 mb-1">Title *</label>
+                  <label className="block text-xs font-mono text-gray-300 mb-1">Main Image URL *</label>
                   <input
                     type="text"
-                    value={editingGalleryItem.title}
-                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, title: e.target.value })}
+                    value={editingGalleryItem.imageUrl}
+                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, imageUrl: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-mono text-gray-300 mb-1">Client Name</label>
-                  <input
-                    type="text"
-                    placeholder="Optional"
-                    value={editingGalleryItem.clientName || ''}
-                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, clientName: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-mono text-gray-300 mb-1">Category *</label>
-                  <select
-                    value={editingGalleryItem.category}
-                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, category: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
-                  >
-                    {CATEGORY_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-mono text-gray-300 mb-1">Main Image URL *</label>
-                <input
-                  type="text"
-                  value={editingGalleryItem.imageUrl}
-                  onChange={e => setEditingGalleryItem({ ...editingGalleryItem, imageUrl: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
-                  required
-                />
-              </div>
 
-              {/* Additional Portfolio Images for the same project (Edit Modal) */}
-              <div className="p-3.5 rounded-xl bg-[#091122] border border-cyan-500/30 space-y-3">
-                <label className="block text-xs font-mono text-cyan-300 font-bold">
-                  Additional Images/Videos (Upload):
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,video/*"
-                  onChange={handleEditAdditionalImagesUpload}
-                  className="text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-950 file:text-cyan-300 hover:file:bg-cyan-900"
-                />
-                {editingGalleryItem.additionalImages && editingGalleryItem.additionalImages.length > 0 && (
-                  <div className="mt-2 flex gap-2 flex-wrap">
-                    {editingGalleryItem.additionalImages.map((img, idx) => (
-                      <div key={idx} className="relative group">
-                        <MediaRenderer src={img} alt={`Additional ${idx}`} className="w-12 h-12 object-cover rounded border border-cyan-400/50" autoPlay={false} />
-                        <button
-                          type="button"
-                          onClick={() => setEditingGalleryItem(prev => {
-                            if (!prev || !prev.additionalImages) return prev;
-                            return { ...prev, additionalImages: prev.additionalImages.filter((_, i) => i !== idx) };
-                          })}
-                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    <div className="flex items-center text-xs text-emerald-400 font-mono pl-2">
-                      {editingGalleryItem.additionalImages.length} extra media attached
-                    </div>
+                {/* Additional Portfolio Images for the same project (Edit Modal) */}
+                <div className="p-3.5 rounded-xl bg-[#091122] border border-cyan-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-mono text-cyan-300 font-bold">
+                      Additional Images/Videos (Upload):
+                    </label>
+                    {isUploadingMedia && (
+                      <span className="text-[11px] font-mono text-cyan-400 flex items-center gap-1.5 animate-pulse">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading to R2...
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-gray-300 mb-1">Description</label>
-                <textarea
-                  value={editingGalleryItem.description || ''}
-                  onChange={e => setEditingGalleryItem({ ...editingGalleryItem, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-mono text-gray-300 mb-1">Session Hours</label>
                   <input
-                    type="number"
-                    value={editingGalleryItem.sessionHours || ''}
-                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, sessionHours: Number(e.target.value) })}
+                    type="file"
+                    multiple
+                    accept="image/*,video/*"
+                    disabled={isUploadingMedia}
+                    onChange={handleEditAdditionalImagesUpload}
+                    className="text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-950 file:text-cyan-300 hover:file:bg-cyan-900 disabled:opacity-50"
+                  />
+                  {editingGalleryItem.additionalImages && editingGalleryItem.additionalImages.length > 0 && (
+                    <div className="mt-2 flex gap-2 flex-wrap items-center">
+                      {editingGalleryItem.additionalImages.map((img, idx) => (
+                        <div key={idx} className="relative group">
+                          <MediaRenderer src={img} alt={`Additional ${idx}`} className="w-12 h-12 object-cover rounded border border-cyan-400/50" autoPlay={false} />
+                          <button
+                            type="button"
+                            onClick={() => setEditingGalleryItem(prev => {
+                              if (!prev || !prev.additionalImages) return prev;
+                              return { ...prev, additionalImages: prev.additionalImages.filter((_, i) => i !== idx) };
+                            })}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex items-center text-xs text-emerald-400 font-mono pl-2">
+                        ✓ {editingGalleryItem.additionalImages.length} extra media attached
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-gray-300 mb-1">Description</label>
+                  <textarea
+                    value={editingGalleryItem.description || ''}
+                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, description: e.target.value })}
+                    rows={3}
                     className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-mono text-gray-300 mb-1">Placement (e.g., Forearm)</label>
-                  <input
-                    type="text"
-                    value={editingGalleryItem.placement || ''}
-                    onChange={e => setEditingGalleryItem({ ...editingGalleryItem, placement: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-mono text-gray-300 mb-1">Session Hours</label>
+                    <input
+                      type="number"
+                      value={editingGalleryItem.sessionHours || ''}
+                      onChange={e => setEditingGalleryItem({ ...editingGalleryItem, sessionHours: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-gray-300 mb-1">Placement (e.g., Forearm)</label>
+                    <input
+                      type="text"
+                      value={editingGalleryItem.placement || ''}
+                      onChange={e => setEditingGalleryItem({ ...editingGalleryItem, placement: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-black/60 border border-cyan-500/30 text-white text-xs font-mono focus:border-cyan-400 outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-cyan-500/20 flex justify-end gap-3">
+              {/* Fixed Sticky Footer */}
+              <div className="shrink-0 p-3.5 sm:p-4 bg-[#080d1a]/95 backdrop-blur-md border-t border-cyan-500/30 flex items-center justify-end gap-3 z-10">
                 <button
                   type="button"
                   onClick={() => setEditingGalleryItem(null)}
-                  className="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 hover:text-white transition font-mono text-xs"
+                  className="px-4 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-gray-300 hover:text-white transition font-mono text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 rounded-xl bg-cyan-500 text-black font-bold font-mono text-xs hover:bg-cyan-400 transition shadow-[0_0_15px_rgba(0,240,255,0.4)]"
+                  disabled={isUploadingMedia}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 disabled:opacity-50 text-black font-heading font-black text-xs uppercase tracking-wider hover:opacity-90 transition shadow-[0_0_20px_rgba(0,240,255,0.4)] flex items-center gap-2"
                 >
                   Save Changes
                 </button>

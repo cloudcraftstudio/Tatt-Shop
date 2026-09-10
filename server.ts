@@ -154,8 +154,10 @@ app.post('/api/s3/presigned-url', async (req, res) => {
 
     const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     
+    const cleanBucketName = R2_BUCKET_NAME.trim();
+
     const command = new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
+      Bucket: cleanBucketName,
       Key: uniqueFileName,
       ContentType: finalContentType,
     });
