@@ -4,24 +4,20 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 const CHUNK_SIZE = 3 * 250000; // 750,000 bytes per chunk (produces exactly 1,000,000 base64 chars)
 
 export const uploadLargeMedia = async (file: File): Promise<string> => {
-  // If it's very small, just read the whole thing at once
-  if (file.size < CHUNK_SIZE) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-  }
+  // (Removed small file base64 conversion - ALL files will now route to Cloudflare)
 
   // Attempt to use Cloudflare R2 / S3 Object Storage first
   try {
     const response = await fetch('/api/s3/presigned-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: file.name, contentType: file.type })
+      body: JSON.stringify({ fileName: file.name, contentType: file.type || 'video/mp4' })
     });
 
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error('Backend presigned URL generation failed: ' + errText);
+    }
     if (response.ok) {
       const { uploadUrl, publicUrl } = await response.json();
       
@@ -29,7 +25,7 @@ export const uploadLargeMedia = async (file: File): Promise<string> => {
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
         headers: {
-          'Content-Type': file.type
+          'Content-Type': file.type || 'video/mp4'
         },
         body: file
       });
@@ -43,6 +39,12 @@ export const uploadLargeMedia = async (file: File): Promise<string> => {
     }
   } catch (err) {
     console.warn('Cloudflare R2 not configured or upload failed. Falling back to Firestore chunking.', err);
+  }
+  
+  // COMPLETELY BLOCK FIRESTORE CHUNKING TO PREVENT QUOTA EXHAUSTION
+  // Since we know they hit the 20k write limit, do not attempt to write 70 chunks.
+  if (file.size > CHUNK_SIZE) {
+    throw new Error('Cloudflare upload failed, and this file is too large to safely store in the database without hitting quota limits. Please ensure Cloudflare R2 is configured correctly.');
   }
 
   // Enforce a sensible max size for Firestore (e.g. 50MB) to avoid ridiculous chunk loops

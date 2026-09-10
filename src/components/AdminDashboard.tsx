@@ -117,19 +117,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [newBeforeImageUrl, setNewBeforeImageUrl] = useState('');
 
   const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isBefore = false) => {
+    setIsUploadingMedia(true);
     const file = e.target.files?.[0];
-    if (!file) return;
-    const base64 = await uploadLargeMedia(file);
-    if (isBefore) {
-      setNewBeforeImageUrl(base64);
-    } else {
-      setNewImageUrl(base64);
+    if (!file) {
+      setIsUploadingMedia(false);
+      return;
+    }
+    try {
+      const base64 = await uploadLargeMedia(file);
+      if (isBefore) {
+        setNewBeforeImageUrl(base64);
+      } else {
+        setNewImageUrl(base64);
+      }
+    } catch (err) {
+      console.warn(err);
+      alert((err as Error).message || 'Failed to process media file. Check size limits.');
+    } finally {
+      setIsUploadingMedia(false);
     }
   };
 
   const handleAdditionalImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    setIsUploadingMedia(true);
     
     const newBase64Images: string[] = [];
     for (let i = 0; i < files.length; i++) {
@@ -137,12 +149,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         const base64 = await uploadLargeMedia(files[i]);
         newBase64Images.push(base64);
       } catch (err) {
-        console.error('Failed to process additional image', err);
+        console.warn('Failed to process additional image', err);
         alert((err as Error).message || 'Failed to process media file. Check size limits.');
       }
     }
-    
     setNewAdditionalImages(prev => [...prev, ...newBase64Images]);
+    setIsUploadingMedia(false);
   };
 
   const handleAddGalleryItem = (e: React.FormEvent) => {
@@ -271,11 +283,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // --- EDIT GALLERY MODAL ---
   const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   
   const handleEditAdditionalImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!editingGalleryItem) return;
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    setIsUploadingMedia(true);
     
     const newBase64Images: string[] = [];
     for (let i = 0; i < files.length; i++) {
@@ -283,7 +297,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         const base64 = await uploadLargeMedia(files[i]);
         newBase64Images.push(base64);
       } catch (err) {
-        console.error('Failed to process additional image', err);
+        console.warn('Failed to process additional image', err);
         alert((err as Error).message || 'Failed to process media file. Check size limits.');
       }
     }
@@ -295,6 +309,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         additionalImages: [...(prev.additionalImages || []), ...newBase64Images]
       };
     });
+    setIsUploadingMedia(false);
   };
 
   const handleUpdateGalleryItem = async (e: React.FormEvent) => {
@@ -343,7 +358,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setEditAvatarUrl(base64);
       showNotification('Artist portrait updated! Click Save Profile to apply.');
     } catch (err) {
-      console.error(err);
+      console.warn(err);
       showNotification('Failed to process image file.');
     }
   };
@@ -356,7 +371,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setEditBannerUrl(base64);
       showNotification('Studio banner updated! Click Save Profile to apply.');
     } catch (err) {
-      console.error(err);
+      console.warn(err);
       showNotification('Failed to process image file.');
     }
   };
@@ -1274,8 +1289,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               type="submit"
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-heading font-black text-xs uppercase tracking-wider hover:opacity-95 transition shadow-[0_0_15px_rgba(0,240,255,0.4)]"
             >
-              Save Changes
-            </button>
+              {isUploadingMedia ? 'Uploading...' : 'Save Changes'}
+                </button>
           </div>
 
           {/* Tex's Studio Artist Photo & Banner Section */}
@@ -1518,7 +1533,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                      storageService.saveSplashScreenSettings(storageService.getSplashScreenSettings());
                      showNotification('All local data successfully pushed to Firebase Cloud!');
                    } catch (e) {
-                     console.error(e);
+                     console.warn(e);
                      showNotification('Error syncing data!');
                    }
                  }

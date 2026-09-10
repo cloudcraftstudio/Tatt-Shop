@@ -135,9 +135,10 @@ app.post('/api/s3/presigned-url', async (req, res) => {
     }
 
     const { fileName, contentType } = req.body;
-    if (!fileName || !contentType) {
-      return res.status(400).json({ error: 'fileName and contentType are required.' });
+    if (!fileName) {
+      return res.status(400).json({ error: 'fileName is required.' });
     }
+    const finalContentType = contentType || 'application/octet-stream';
 
     // Ensure endpoint has a protocol
     const endpoint = R2_ENDPOINT.startsWith('http') ? R2_ENDPOINT : `https://${R2_ENDPOINT}`;
@@ -156,7 +157,7 @@ app.post('/api/s3/presigned-url', async (req, res) => {
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: uniqueFileName,
-      ContentType: contentType,
+      ContentType: finalContentType,
     });
 
     const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 }); // 1 hour expiration

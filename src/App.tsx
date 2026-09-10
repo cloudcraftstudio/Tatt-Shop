@@ -160,7 +160,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#04060c] text-gray-100 font-sans relative overflow-x-clip selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen bg-[#04060c] text-gray-100 font-sans relative overflow-x-hidden w-full max-w-[100vw] selection:bg-cyan-500 selection:text-black">
       {/* Animated Matrix Cyberpunk Live Splash Screen */}
       <AnimatePresence>
         {showSplash && (

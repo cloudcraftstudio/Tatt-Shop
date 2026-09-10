@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, setLogLevel } from 'firebase/firestore';
+setLogLevel('silent');
 import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const firebaseConfig = {

@@ -1,33 +1,42 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/services/storage.ts', 'utf8');
+const file = 'src/services/storage.ts';
+let code = fs.readFileSync(file, 'utf8');
 
-// Replace saveToFirestore
-const replacement = `const arrayCache = new Map<string, any[]>();
-const saveToFirestore = async (col: string, data: any) => {
-  try {
-    if (Array.isArray(data)) {
-      // Intentionally do nothing. Array writes are now handled per-document.
-    } else {
-      await setDoc(doc(db, col, 'data'), data);
+code = code.replace(
+  /saveGallery\(gallery: GalleryItem\[\]\): void \{\s*memoryGalleryCache = gallery;\s*try \{\s*localStorage\.setItem\(KEYS\.GALLERY, JSON\.stringify\(gallery\)\);\s*\} catch \(e\) \{\s*console\.warn\('Storage quota warning on gallery save to localStorage', e\);\s*\}\s*\}/,
+  `saveGallery(gallery: GalleryItem[]): void {
+    memoryGalleryCache = gallery;
+    try {
+      const strippedGallery = gallery.map(item => {
+        const stripBase64 = (str?: string) => (str && str.startsWith('data:') && str.length > 250000) ? 'media://stripped_for_local_storage' : str;
+        return {
+          ...item,
+          imageUrl: stripBase64(item.imageUrl) || item.imageUrl,
+          additionalImages: item.additionalImages?.map(img => stripBase64(img) || img) || []
+        };
+      });
+      localStorage.setItem(KEYS.GALLERY, JSON.stringify(strippedGallery));
+    } catch (e) {
+      console.warn('Storage quota warning on gallery save to localStorage', e);
     }
-  } catch (e) {
-    console.error('Firestore save failed', e);
-  }
-};
-const deleteFromFirestore`;
+  }`
+);
 
-code = code.replace(/const saveToFirestore = async \(col: string, data: any\) => \{[\s\S]*?const deleteFromFirestore/m, replacement);
+code = code.replace(
+  /memoryGalleryCache = updated;\s*try \{\s*localStorage\.setItem\(KEYS\.GALLERY, JSON\.stringify\(updated\)\);\s*\} catch \(e\) \{\s*console\.warn\('LocalStorage quota reached during bulk gallery save', e\);\s*\}/,
+  `this.saveGallery(updated);`
+);
 
-// Remove batch array saves
-code = code.replace(/saveToFirestore\("gallery", gallery\);/g, '');
-code = code.replace(/saveToFirestore\("posts", posts\);/g, '');
-code = code.replace(/saveToFirestore\("journal", posts\);/g, '');
-code = code.replace(/saveToFirestore\("reels", reels\);/g, '');
-code = code.replace(/saveToFirestore\("bookings", bookings\);/g, '');
-code = code.replace(/saveToFirestore\("transactions", transactions\);/g, '');
-code = code.replace(/saveToFirestore\("testimonials", testimonials\);/g, '');
-code = code.replace(/saveToFirestore\("testimonials", updated\);/g, '');
-code = code.replace(/saveToFirestore\("waivers", waivers\);/g, '');
-code = code.replace(/saveToFirestore\("waivers", updated\);/g, '');
+code = code.replace(
+  /gallery\[index\] = updatedItem;\s*memoryGalleryCache = gallery;\s*try \{\s*localStorage\.setItem\(KEYS\.GALLERY, JSON\.stringify\(gallery\)\);\s*\} catch \(e\) \{\s*console\.warn\('Storage quota warning on gallery update', e\);\s*\}/,
+  `gallery[index] = updatedItem;
+      this.saveGallery(gallery);`
+);
 
-fs.writeFileSync('src/services/storage.ts', code);
+code = code.replace(
+  /memoryGalleryCache = gallery;\s*try \{\s*localStorage\.setItem\(KEYS\.GALLERY, JSON\.stringify\(gallery\)\);\s*\} catch \(e\) \{\s*console\.warn\('LocalStorage error on delete', e\);\s*\}/,
+  `this.saveGallery(gallery);`
+);
+
+fs.writeFileSync(file, code);
+console.log('Patched storage.ts');

@@ -60,7 +60,7 @@ export const setupFirestoreSync = (callback: (data: any) => void) => {
         }
         callback(col);
       },
-      (error) => { console.error("Sync error:", error); }
+      (error) => { console.warn("Sync error:", error); }
     );
   };
 
@@ -78,7 +78,7 @@ export const setupFirestoreSync = (callback: (data: any) => void) => {
           callback(col);
         }
       },
-      (error) => { console.error("Sync error:", error); }
+      (error) => { console.warn("Sync error:", error); }
     );
   };
 
@@ -100,14 +100,14 @@ const saveToFirestore = async (col: string, data: any) => {
       await setDoc(doc(db, col, 'data'), data);
     }
   } catch (e) {
-    console.error('Firestore save failed', e);
+    console.warn('Firestore save failed', e);
   }
 };
 const deleteFromFirestore = async (col: string, id: string) => {
   try {
     await deleteDoc(doc(db, col, id));
   } catch(e) {
-    console.error('Firestore delete failed', e);
+    console.warn('Firestore delete failed', e);
   }
 };
 
@@ -190,11 +190,18 @@ export const storageService = {
   saveGallery(gallery: GalleryItem[]): void {
     memoryGalleryCache = gallery;
     try {
-      localStorage.setItem(KEYS.GALLERY, JSON.stringify(gallery));
+      const strippedGallery = gallery.map(item => {
+        const stripBase64 = (str?: string) => (str && str.startsWith('data:') && str.length > 250000) ? 'media://stripped_for_local_storage' : str;
+        return {
+          ...item,
+          imageUrl: stripBase64(item.imageUrl) || item.imageUrl,
+          additionalImages: item.additionalImages?.map(img => stripBase64(img) || img) || []
+        };
+      });
+      localStorage.setItem(KEYS.GALLERY, JSON.stringify(strippedGallery));
     } catch (e) {
       console.warn('Storage quota warning on gallery save to localStorage', e);
     }
-    
   },
 
   addGalleryItem(item: Omit<GalleryItem, 'id' | 'createdAt'>): GalleryItem {
@@ -206,7 +213,7 @@ export const storageService = {
     };
     const updated = [newItem, ...gallery];
     this.saveGallery(updated);
-    setDoc(doc(db, "gallery", newItem.id), newItem).catch(e => console.error(e));
+    setDoc(doc(db, "gallery", newItem.id), newItem).catch(e => console.warn(e));
     return newItem;
   },
 
@@ -219,20 +226,14 @@ export const storageService = {
     }));
 
     const updated = [...createdItems, ...current];
-    memoryGalleryCache = updated;
-
-    try {
-      localStorage.setItem(KEYS.GALLERY, JSON.stringify(updated));
-    } catch (e) {
-      console.warn('LocalStorage quota reached during bulk gallery save', e);
-    }
+    this.saveGallery(updated);
 
     // Persist each item directly to Firestore
     for (const item of createdItems) {
       try {
         await setDoc(doc(db, "gallery", item.id), item);
       } catch (err) {
-        console.error('Failed to write item to Firestore', item.id, err);
+        console.warn('Failed to write item to Firestore', item.id, err);
       }
     }
 
@@ -248,28 +249,18 @@ export const storageService = {
     const index = gallery.findIndex(g => g.id === updatedItem.id);
     if (index !== -1) {
       gallery[index] = updatedItem;
-      memoryGalleryCache = gallery;
-      try {
-        localStorage.setItem(KEYS.GALLERY, JSON.stringify(gallery));
-      } catch (e) {
-        console.warn('Storage quota warning on gallery update', e);
-      }
+      this.saveGallery(gallery);
       try {
         await setDoc(doc(db, "gallery", updatedItem.id), updatedItem);
       } catch(e) {
-        console.error('Firestore update failed', e);
+        console.warn('Firestore update failed', e);
       }
     }
   },
 
   async deleteGalleryItem(id: string): Promise<void> {
     const gallery = this.getGallery().filter(g => g.id !== id);
-    memoryGalleryCache = gallery;
-    try {
-      localStorage.setItem(KEYS.GALLERY, JSON.stringify(gallery));
-    } catch (e) {
-      console.warn('LocalStorage error on delete', e);
-    }
+    this.saveGallery(gallery);
     await deleteFromFirestore("gallery", id);
   },
 
@@ -329,7 +320,7 @@ export const storageService = {
     };
     const updated = [newPost, ...posts];
     this.savePosts(updated);
-    setDoc(doc(db, "posts", newPost.id), newPost).catch(e => console.error(e));
+    setDoc(doc(db, "posts", newPost.id), newPost).catch(e => console.warn(e));
     return newPost;
   },
 
@@ -434,7 +425,7 @@ export const storageService = {
     };
     const updated = [newReel, ...reels];
     this.saveTikTokReels(updated);
-    setDoc(doc(db, "reels", newReel.id), newReel).catch(e => console.error(e));
+    setDoc(doc(db, "reels", newReel.id), newReel).catch(e => console.warn(e));
     return newReel;
   },
 
@@ -495,7 +486,7 @@ export const storageService = {
     };
     const updated = [newBooking, ...bookings];
     this.saveBookings(updated);
-    setDoc(doc(db, "bookings", newBooking.id), newBooking).catch(e => console.error(e));
+    setDoc(doc(db, "bookings", newBooking.id), newBooking).catch(e => console.warn(e));
     return newBooking;
   },
 
@@ -631,7 +622,7 @@ export const storageService = {
     const updated = [newTest, ...tests];
     try {
       localStorage.setItem(KEYS.TESTIMONIALS, JSON.stringify(updated));
-      setDoc(doc(db, "testimonials", newTest.id), newTest).catch(err => console.error(err));
+      setDoc(doc(db, "testimonials", newTest.id), newTest).catch(err => console.warn(err));
     } catch (e) {
       console.warn(e);
     }
@@ -685,7 +676,7 @@ export const storageService = {
       const syncArray = async (col, arr) => {
         if (!Array.isArray(arr)) return;
         for (const item of arr) {
-          if (item && item.id) await setDoc(doc(db, col, item.id), item).catch(e => console.error(e));
+          if (item && item.id) await setDoc(doc(db, col, item.id), item).catch(e => console.warn(e));
         }
       };
       
@@ -697,11 +688,11 @@ export const storageService = {
         syncArray("posts", data.posts),
         syncArray("journal", data.journal),
         syncArray("reels", data.reels)
-      ]).catch(e => console.error('Background sync failed', e));
+      ]).catch(e => console.warn('Background sync failed', e));
 
       return true;
     } catch (err) {
-      console.error('Import failed', err);
+      console.warn('Import failed', err);
       return false;
     }
   },
@@ -749,7 +740,7 @@ export const storageService = {
         updated = [waiver, ...current];
       }
       localStorage.setItem(KEYS.WAIVERS, JSON.stringify(updated));
-      if (waiver) setDoc(doc(db, "waivers", waiver.id), waiver).catch(err => console.error(err));
+      if (waiver) setDoc(doc(db, "waivers", waiver.id), waiver).catch(err => console.warn(err));
     } catch (e) {
       console.warn('Failed to save waiver', e);
     }
