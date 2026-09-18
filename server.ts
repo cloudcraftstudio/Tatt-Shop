@@ -11,7 +11,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Persistent local data folder for TikTok tokens and configuration
 const DATA_DIR = path.join(process.cwd(), '.data');
