@@ -35,6 +35,57 @@ app.use((req, _res, next) => {
 const TIKTOK_CONFIG_FILE = path.join(DATA_DIR, 'tiktok-config.json');
 const TIKTOK_TOKEN_FILE = path.join(DATA_DIR, 'tiktok-token.json');
 
+const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET || process.env.TIKTOK_ENCRYPTION_KEY || 'lights-out-tattoo-secure-key-2025-prod-vault';
+const CIPHER_KEY = crypto.createHash('sha256').update(ENCRYPTION_SECRET).digest();
+
+function encryptAESGCM(text: string): { ciphertext: string; iv: string; tag: string } {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', CIPHER_KEY, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const tag = cipher.getAuthTag().toString('hex');
+  return { ciphertext: encrypted, iv: iv.toString('hex'), tag };
+}
+
+function decryptAESGCM(ciphertext: string, ivHex: string, tagHex: string): string {
+  try {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', CIPHER_KEY, Buffer.from(ivHex, 'hex'));
+    decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+    let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch {
+    return ciphertext;
+  }
+}
+
+async function syncConfigToFirestore(secureData: any) {
+  try {
+    const projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0448860491';
+    const databaseId = process.env.FIRESTORE_DATABASE_ID || 'ai-studio-lightsouttattoo-90b14bb6-c7cf-4eb6-b802-d3995a38347e';
+    const apiKey = process.env.FIREBASE_API_KEY || 'AIzaSyATomHQp7H5ZNcTHM60_-lKLp2sf6GD8oY';
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/system_config/tiktok_config?key=${apiKey}`;
+
+    const fields: Record<string, any> = {
+      clientKey: { stringValue: secureData.clientKey || '' },
+      redirectUri: { stringValue: secureData.redirectUri || '' },
+      encryptionAlgorithm: { stringValue: 'AES-256-GCM' },
+      hasClientSecret: { booleanValue: Boolean(secureData.encryptedSecret) },
+      updatedAt: { stringValue: secureData.updatedAt || new Date().toISOString() }
+    };
+    if (secureData.encryptedSecret) {
+      fields.encryptedClientSecret = { stringValue: secureData.encryptedSecret };
+      fields.clientSecretIv = { stringValue: secureData.secretIv };
+      fields.clientSecretTag = { stringValue: secureData.secretTag };
+    }
+    await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields })
+    });
+  } catch {}
+}
+
 interface TikTokStoredConfig {
   clientKey?: string;
   clientSecret?: string;
@@ -58,7 +109,16 @@ function getStoredConfig(): TikTokStoredConfig {
   try {
     if (fs.existsSync(TIKTOK_CONFIG_FILE)) {
       const content = fs.readFileSync(TIKTOK_CONFIG_FILE, 'utf-8');
-      return JSON.parse(content);
+      const data = JSON.parse(content);
+      let secret = data.clientSecret;
+      if (data.encryptedSecret && data.secretIv && data.secretTag) {
+        secret = decryptAESGCM(data.encryptedSecret, data.secretIv, data.secretTag);
+      }
+      return {
+        clientKey: data.clientKey,
+        clientSecret: secret,
+        redirectUri: data.redirectUri
+      };
     }
   } catch (err) {
     console.error('Error reading tiktok-config.json:', err);
@@ -68,7 +128,26 @@ function getStoredConfig(): TikTokStoredConfig {
 
 function saveStoredConfig(cfg: TikTokStoredConfig) {
   try {
-    fs.writeFileSync(TIKTOK_CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf-8');
+    let encryptedSecret = '';
+    let secretIv = '';
+    let secretTag = '';
+    if (cfg.clientSecret) {
+      const enc = encryptAESGCM(cfg.clientSecret);
+      encryptedSecret = enc.ciphertext;
+      secretIv = enc.iv;
+      secretTag = enc.tag;
+    }
+    const secureStorage = {
+      clientKey: cfg.clientKey,
+      redirectUri: cfg.redirectUri,
+      encryptedSecret,
+      secretIv,
+      secretTag,
+      encryptionAlgorithm: 'AES-256-GCM',
+      updatedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(TIKTOK_CONFIG_FILE, JSON.stringify(secureStorage, null, 2), 'utf-8');
+    syncConfigToFirestore(secureStorage).catch(() => {});
   } catch (err) {
     console.error('Error writing tiktok-config.json:', err);
   }
@@ -244,6 +323,21 @@ app.get('/api/tiktok/status', (req, res) => {
     isConnected,
     user: token?.user || null,
     expiresAt: token?.expiresAt || null
+  });
+});
+
+// GET TikTok Configuration
+app.get('/api/tiktok/config', (req, res) => {
+  const { clientKey, clientSecret, redirectUri } = getEffectiveCredentials(req);
+  const hasKey = Boolean(clientKey);
+  const hasSecret = Boolean(clientSecret);
+  res.json({
+    configured: hasKey && hasSecret,
+    hasClientKey: hasKey,
+    hasClientSecret: hasSecret,
+    clientKey: clientKey ? `${clientKey.slice(0, 4)}••••${clientKey.slice(-4)}` : '',
+    rawClientKey: clientKey,
+    redirectUri
   });
 });
 
