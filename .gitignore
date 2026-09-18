@@ -4,8 +4,10 @@ dist/
 coverage/
 .DS_Store
 *.log
+!deployment.log
 .env*
 !.env.example
+!.env.production.template
 .data/
 bun.lock
 bun.lockb
