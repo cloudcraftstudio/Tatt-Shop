@@ -11,6 +11,7 @@
  */
 
 import {
+  corsHeaders,
   getCredentialsFromFirestore,
   saveTokensToFirestore,
   normalizeRedirectUri,
@@ -24,6 +25,13 @@ interface Env {
   ENCRYPTION_SECRET?: string;
   TIKTOK_KV?: any;
 }
+
+export const onRequestOptions: PagesFunction<Env> = async () => {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders()
+  });
+};
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
