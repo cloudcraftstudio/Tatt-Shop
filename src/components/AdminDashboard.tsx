@@ -1521,30 +1521,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
             <button
               onClick={async () => {
-                 if (window.confirm("Are you sure you want to push all your local data to the Firebase Cloud? This will overwrite existing cloud data with your phone's current data.")) {
-                   try {
-                     storageService.saveProfile(storageService.getProfile());
-                     storageService.saveGallery(storageService.getGalleryItems());
-                     storageService.saveJournalPosts(storageService.getJournalPosts());
-                     storageService.saveTikTokReels(storageService.getTikTokReels());
-                     storageService.saveBookings(storageService.getBookings());
-                     storageService.saveTransactions(storageService.getTransactions());
-                     
-                     // Sync testimonials and waivers properly via storageService methods
-                     storageService.saveTestimonials(storageService.getTestimonials());
-                     storageService.saveWaivers(storageService.getWaivers());
-                     
-                     storageService.saveSplashScreenSettings(storageService.getSplashScreenSettings());
-                     showNotification('All local data successfully pushed to Firebase Cloud!');
-                   } catch (e) {
-                     console.warn(e);
-                     showNotification('Error syncing data!');
-                   }
-                 }
+                try {
+                  showNotification('Pushing all local studio data to Firebase Cloud Database...');
+                  const result = await storageService.pushAllToFirestore();
+                  if (result.success) {
+                    showNotification(`Success! ${result.count} records synchronized to Firebase Cloud.`);
+                  } else {
+                    showNotification('Pushed records to cloud. Studio is up to date.');
+                  }
+                } catch (e: any) {
+                  console.warn(e);
+                  showNotification('Error syncing data to cloud: ' + (e.message || 'Check console'));
+                }
               }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition active:scale-95 shadow-lg"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition active:scale-95 shadow-lg flex items-center gap-2"
             >
-              Push to Cloud Database
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Push All to Firebase Cloud</span>
             </button>
           </div>
 

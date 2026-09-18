@@ -22,7 +22,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
   const [pinError, setPinError] = useState('');
   const [showPinDigits, setShowPinDigits] = useState(false);
 
-  const [selectedRedirectUri, setSelectedRedirectUri] = useState<string>('');
+  const [selectedRedirectUri, setSelectedRedirectUri] = useState<string>('https://lightsouttattoo.site/oauth/callback');
   const [showRedirectOptions, setShowRedirectOptions] = useState<boolean>(false);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
       if (status?.redirectUri) {
         setSelectedRedirectUri(status.redirectUri);
       } else {
-        setSelectedRedirectUri(`${window.location.origin}/oauth/callback`);
+        setSelectedRedirectUri('https://lightsouttattoo.site/oauth/callback');
       }
     });
   }, []);
@@ -77,7 +77,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
         return;
       }
       
-      const uriToUse = selectedRedirectUri || tiktokStatus?.redirectUri || `${window.location.origin}/oauth/callback`;
+      const uriToUse = selectedRedirectUri || tiktokStatus?.redirectUri || 'https://lightsouttattoo.site/oauth/callback';
       const returnUrl = window.location.href;
       const data = await tiktokService.getAuthUrl(uriToUse, undefined, returnUrl);
       
@@ -205,60 +205,32 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
                   </button>
                 </div>
                 <div className="text-cyan-300 truncate mt-1 break-all select-all font-mono text-[10px] bg-cyan-950/30 p-1.5 rounded border border-cyan-500/20">
-                  {selectedRedirectUri || tiktokStatus?.redirectUri || `${window.location.origin}/oauth/callback`}
+                  {selectedRedirectUri || tiktokStatus?.redirectUri || 'https://lightsouttattoo.site/oauth/callback'}
                 </div>
                 {showRedirectOptions && (
                   <div className="mt-2 pt-2 border-t border-cyan-500/20 space-y-1.5">
-                    <p className="text-[10px] text-gray-400">Select URI matching your TikTok Developer Portal:</p>
-                    <div className="grid grid-cols-1 gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRedirectUri(`${window.location.origin}/oauth/callback`)}
-                        className={`text-left px-2 py-1 rounded text-[10px] truncate ${selectedRedirectUri === `${window.location.origin}/oauth/callback` ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50' : 'bg-black/60 text-gray-400 hover:text-white'}`}
-                      >
-                        Current Origin: {window.location.origin}/oauth/callback
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRedirectUri('https://ais-dev-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app/oauth/callback')}
-                        className={`text-left px-2 py-1 rounded text-[10px] truncate ${selectedRedirectUri.includes('ais-dev') && selectedRedirectUri.includes('oauth/callback') ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50' : 'bg-black/60 text-gray-400 hover:text-white'}`}
-                      >
-                        Dev: ais-dev-.../oauth/callback
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRedirectUri('https://ais-dev-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app/api/tiktok/callback')}
-                        className={`text-left px-2 py-1 rounded text-[10px] truncate ${selectedRedirectUri.includes('ais-dev') && selectedRedirectUri.includes('api/tiktok/callback') ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50' : 'bg-black/60 text-gray-400 hover:text-white'}`}
-                      >
-                        Dev: ais-dev-.../api/tiktok/callback
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRedirectUri('https://ais-pre-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app/oauth/callback')}
-                        className={`text-left px-2 py-1 rounded text-[10px] truncate ${selectedRedirectUri.includes('ais-pre') && selectedRedirectUri.includes('oauth/callback') ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50' : 'bg-black/60 text-gray-400 hover:text-white'}`}
-                      >
-                        Public: ais-pre-.../oauth/callback
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRedirectUri('https://ais-pre-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app/api/tiktok/callback')}
-                        className={`text-left px-2 py-1 rounded text-[10px] truncate ${selectedRedirectUri.includes('ais-pre') && selectedRedirectUri.includes('api/tiktok/callback') ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50' : 'bg-black/60 text-gray-400 hover:text-white'}`}
-                      >
-                        Public: ais-pre-.../api/tiktok/callback
-                      </button>
+                    <p className="text-[10px] text-gray-400">Select Callback URI (Only the 3 registered):</p>
+                    <div className="grid grid-cols-1 gap-1.5">
                       <button
                         type="button"
                         onClick={() => setSelectedRedirectUri('https://lightsouttattoo.site/oauth/callback')}
-                        className={`text-left px-2 py-1 rounded text-[10px] truncate ${selectedRedirectUri.includes('lightsouttattoo.site') && selectedRedirectUri.includes('oauth/callback') ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50' : 'bg-black/60 text-gray-400 hover:text-white'}`}
+                        className={`text-left px-2.5 py-1.5 rounded text-[10px] truncate transition ${selectedRedirectUri === 'https://lightsouttattoo.site/oauth/callback' ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50 font-bold' : 'bg-black/60 text-gray-400 hover:text-white border border-transparent'}`}
                       >
-                        Domain: https://lightsouttattoo.site/oauth/callback
+                        1. https://lightsouttattoo.site/oauth/callback
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRedirectUri('https://lightsouttattoo.site/auth/callback')}
+                        className={`text-left px-2.5 py-1.5 rounded text-[10px] truncate transition ${selectedRedirectUri === 'https://lightsouttattoo.site/auth/callback' ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50 font-bold' : 'bg-black/60 text-gray-400 hover:text-white border border-transparent'}`}
+                      >
+                        2. https://lightsouttattoo.site/auth/callback
                       </button>
                       <button
                         type="button"
                         onClick={() => setSelectedRedirectUri('https://lightsouttattoo.site/api/tiktok/callback')}
-                        className={`text-left px-2 py-1 rounded text-[10px] truncate ${selectedRedirectUri.includes('lightsouttattoo.site') && selectedRedirectUri.includes('api/tiktok/callback') ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50' : 'bg-black/60 text-gray-400 hover:text-white'}`}
+                        className={`text-left px-2.5 py-1.5 rounded text-[10px] truncate transition ${selectedRedirectUri === 'https://lightsouttattoo.site/api/tiktok/callback' ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50 font-bold' : 'bg-black/60 text-gray-400 hover:text-white border border-transparent'}`}
                       >
-                        Domain: https://lightsouttattoo.site/api/tiktok/callback
+                        3. https://lightsouttattoo.site/api/tiktok/callback
                       </button>
                     </div>
                   </div>

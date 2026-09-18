@@ -17,17 +17,36 @@ const KEYS = {
   PIN: 'lot_admin_pin_v1',
   SPLASH: 'lot_splash_settings_v1',
   ADMIN_AUTH: 'lot_admin_session_v1',
-  SPLASH_SEEN: 'lot_splash_seen_v1'
+  SPLASH_SEEN: 'lot_splash_seen_v1',
+  TIKTOK_CONFIG: 'lot_tiktok_config_v1'
 };
 
+
+const getStorageKeyForCol = (col: string): string => {
+  switch (col) {
+    case 'profile': return KEYS.PROFILE;
+    case 'gallery': return KEYS.GALLERY;
+    case 'posts': return KEYS.POSTS;
+    case 'journal': return KEYS.JOURNAL;
+    case 'bookings': return KEYS.BOOKINGS;
+    case 'testimonials': return KEYS.TESTIMONIALS;
+    case 'reels': return KEYS.REELS;
+    case 'transactions': return KEYS.TRANSACTIONS;
+    case 'waivers': return KEYS.WAIVERS;
+    case 'splash': return KEYS.SPLASH;
+    case 'tiktok_config': return KEYS.TIKTOK_CONFIG;
+    default: return 'lot_' + col + '_v1';
+  }
+};
 
 let memoryGalleryCache: GalleryItem[] | null = null;
 
 export const setupFirestoreSync = (callback: (data: any) => void) => {
   const arrayCollections = ['gallery', 'posts', 'journal', 'reels', 'bookings', 'transactions', 'testimonials', 'waivers'];
-  const objectCollections = ['profile', 'splash'];
+  const objectCollections = ['profile', 'splash', 'tiktok_config'];
 
   const setupArrayListener = (col: string) => {
+    const storageKey = getStorageKeyForCol(col);
     onSnapshot(
       collection(db, col),
       (snapshot) => {
@@ -49,12 +68,33 @@ export const setupFirestoreSync = (callback: (data: any) => void) => {
           return rest;
         });
 
+        // CRITICAL: Do NOT wipe localStorage if Firestore returns an empty collection!
+        // Instead, check if localStorage has valid data and seed it to Firestore
+        if (items.length === 0) {
+          try {
+            const raw = localStorage.getItem(storageKey);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                // Auto-seed to Firestore so cloud database is never empty
+                for (const item of parsed) {
+                  if (item && item.id) {
+                    setDoc(doc(db, col, item.id), item).catch(() => {});
+                  }
+                }
+                return; // Keep existing local data
+              }
+            }
+          } catch {}
+          return;
+        }
+
         if (col === 'gallery') {
           memoryGalleryCache = items as GalleryItem[];
         }
 
         try {
-          localStorage.setItem('lot_' + col + '_v1', JSON.stringify(items));
+          localStorage.setItem(storageKey, JSON.stringify(items));
         } catch (storageErr) {
           console.warn('LocalStorage write skipped due to quota for ' + col, storageErr);
         }
@@ -65,17 +105,27 @@ export const setupFirestoreSync = (callback: (data: any) => void) => {
   };
 
   const setupObjectListener = (col: string) => {
+    const storageKey = getStorageKeyForCol(col);
     onSnapshot(
       doc(db, col, 'data'),
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
           try {
-            localStorage.setItem('lot_' + (col === 'splash' ? 'splash_settings' : col) + '_v1', JSON.stringify(data));
+            localStorage.setItem(storageKey, JSON.stringify(data));
           } catch (storageErr) {
             console.warn('LocalStorage write failed for ' + col, storageErr);
           }
           callback(col);
+        } else {
+          // If object doc doesn't exist in Firestore, seed it if localStorage has it
+          try {
+            const raw = localStorage.getItem(storageKey);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              setDoc(doc(db, col, 'data'), parsed).catch(() => {});
+            }
+          } catch {}
         }
       },
       (error) => { console.warn("Sync error:", error); }
@@ -303,7 +353,11 @@ export const storageService = {
   savePosts(posts: Post[]): void {
     try {
       localStorage.setItem(KEYS.POSTS, JSON.stringify(posts));
-      
+      for (const p of posts) {
+        if (p && p.id) {
+          setDoc(doc(db, "posts", p.id), p).catch(e => console.warn(e));
+        }
+      }
     } catch (e) {
       console.warn('Storage error on posts save', e);
     }
@@ -377,7 +431,11 @@ export const storageService = {
   saveJournalPosts(posts: JournalPost[]): void {
     try {
       localStorage.setItem(KEYS.JOURNAL, JSON.stringify(posts));
-      
+      for (const p of posts) {
+        if (p && p.id) {
+          setDoc(doc(db, "journal", p.id), p).catch(e => console.warn(e));
+        }
+      }
     } catch (e) {
       console.warn('Storage error on journal save', e);
     }
@@ -411,7 +469,11 @@ export const storageService = {
   saveTikTokReels(reels: TikTokReel[]): void {
     try {
       localStorage.setItem(KEYS.REELS, JSON.stringify(reels));
-      
+      for (const r of reels) {
+        if (r && r.id) {
+          setDoc(doc(db, "reels", r.id), r).catch(e => console.warn(e));
+        }
+      }
     } catch (e) {
       console.warn('Storage error on reels save', e);
     }
@@ -435,13 +497,18 @@ export const storageService = {
     deleteFromFirestore("reels", id);
   },
 
-  syncTikTokReels(newReels: TikTokReel[]): void {
+  async syncTikTokReels(newReels: TikTokReel[]): Promise<void> {
     const existing = this.getTikTokReels();
     // Merge new reels avoiding duplicates by ID or videoUrl
     const existingUrls = new Set(existing.map(r => r.videoUrl || r.id));
     const toAdd = newReels.filter(r => !existingUrls.has(r.videoUrl || r.id));
     const merged = [...toAdd, ...existing];
     this.saveTikTokReels(merged);
+    for (const r of toAdd) {
+      if (r && r.id) {
+        await setDoc(doc(db, "reels", r.id), r).catch(e => console.warn(e));
+      }
+    }
   },
 
   // Bookings
@@ -466,7 +533,11 @@ export const storageService = {
   saveBookings(bookings: Booking[]): void {
     try {
       localStorage.setItem(KEYS.BOOKINGS, JSON.stringify(bookings));
-      
+      for (const b of bookings) {
+        if (b && b.id) {
+          setDoc(doc(db, "bookings", b.id), b).catch(e => console.warn(e));
+        }
+      }
     } catch (e) {
       console.warn('Storage error on bookings save', e);
     }
@@ -496,6 +567,7 @@ export const storageService = {
     if (target) {
       target.status = status;
       this.saveBookings(bookings);
+      setDoc(doc(db, "bookings", id), target, { merge: true }).catch(e => console.warn(e));
     }
   },
 
@@ -505,6 +577,7 @@ export const storageService = {
     if (target) {
       target.securityDepositStatus = depositStatus;
       this.saveBookings(bookings);
+      setDoc(doc(db, "bookings", id), target, { merge: true }).catch(e => console.warn(e));
     }
   },
 
@@ -517,6 +590,7 @@ export const storageService = {
       target.googleCalendarSyncedAt = new Date().toISOString();
       target.status = 'confirmed';
       this.saveBookings(bookings);
+      setDoc(doc(db, "bookings", id), target, { merge: true }).catch(e => console.warn(e));
     }
   },
 
@@ -548,7 +622,11 @@ export const storageService = {
   saveTransactions(transactions: PaymentTransaction[]): void {
     try {
       localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(transactions));
-      
+      for (const tx of transactions) {
+        if (tx && tx.id) {
+          setDoc(doc(db, "transactions", tx.id), tx).catch(e => console.warn(e));
+        }
+      }
     } catch (e) {
       console.warn('Storage error on transactions save', e);
     }
@@ -597,7 +675,11 @@ export const storageService = {
   saveTestimonials(testimonials: Testimonial[]): void {
     try {
       localStorage.setItem(KEYS.TESTIMONIALS, JSON.stringify(testimonials));
-      
+      for (const t of testimonials) {
+        if (t && t.id) {
+          setDoc(doc(db, "testimonials", t.id), t).catch(e => console.warn(e));
+        }
+      }
     } catch (e) {
       console.warn('Storage error on testimonials save', e);
     }
@@ -901,6 +983,138 @@ export const storageService = {
       localStorage.removeItem(KEYS.ADMIN_AUTH);
     } catch (e) {
       console.warn('Failed to clear admin session', e);
+    }
+  },
+
+  // TikTok Configuration Storage
+  getTikTokConfig(): {
+    clientKey?: string;
+    rawClientKey?: string;
+    redirectUri?: string;
+    configured?: boolean;
+    hasClientKey?: boolean;
+    hasClientSecret?: boolean;
+    isConnected?: boolean;
+    user?: any;
+    lastUpdated?: string;
+  } {
+    try {
+      const raw = localStorage.getItem(KEYS.TIKTOK_CONFIG);
+      if (raw) {
+        return JSON.parse(raw);
+      }
+    } catch {}
+    return {
+      clientKey: '',
+      rawClientKey: '',
+      redirectUri: 'https://lightsouttattoo.site/oauth/callback',
+      configured: false,
+      hasClientKey: false,
+      hasClientSecret: false,
+      isConnected: false,
+      user: null
+    };
+  },
+
+  saveTikTokConfig(config: any): void {
+    try {
+      const current = this.getTikTokConfig();
+      const merged = { ...current, ...config, lastUpdated: new Date().toISOString() };
+      localStorage.setItem(KEYS.TIKTOK_CONFIG, JSON.stringify(merged));
+      setDoc(doc(db, "tiktok_config", "data"), merged).catch(e => console.warn(e));
+    } catch (e) {
+      console.warn('Failed to save TikTok config', e);
+    }
+  },
+
+  // Force Push All Local Studio Data to Firestore Cloud Database
+  async pushAllToFirestore(): Promise<{ success: boolean; count: number }> {
+    let totalPushed = 0;
+    try {
+      // 1. Profile
+      const profile = this.getProfile();
+      await setDoc(doc(db, "profile", "data"), profile);
+      totalPushed++;
+
+      // 2. Splash
+      const splash = this.getSplashScreenSettings();
+      await setDoc(doc(db, "splash", "data"), splash);
+      totalPushed++;
+
+      // 3. TikTok Config
+      const ttConfig = this.getTikTokConfig();
+      if (ttConfig.clientKey || ttConfig.redirectUri) {
+        await setDoc(doc(db, "tiktok_config", "data"), ttConfig);
+        totalPushed++;
+      }
+
+      // 4. Gallery Items
+      const gallery = this.getGallery();
+      for (const g of gallery) {
+        if (g && g.id) {
+          await setDoc(doc(db, "gallery", g.id), g);
+          totalPushed++;
+        }
+      }
+
+      // 5. Reels
+      const reels = this.getTikTokReels();
+      for (const r of reels) {
+        if (r && r.id) {
+          await setDoc(doc(db, "reels", r.id), r);
+          totalPushed++;
+        }
+      }
+
+      // 6. Bookings
+      const bookings = this.getBookings();
+      for (const b of bookings) {
+        if (b && b.id) {
+          await setDoc(doc(db, "bookings", b.id), b);
+          totalPushed++;
+        }
+      }
+
+      // 7. Transactions
+      const txs = this.getTransactions();
+      for (const t of txs) {
+        if (t && t.id) {
+          await setDoc(doc(db, "transactions", t.id), t);
+          totalPushed++;
+        }
+      }
+
+      // 8. Testimonials
+      const testimonials = this.getTestimonials();
+      for (const t of testimonials) {
+        if (t && t.id) {
+          await setDoc(doc(db, "testimonials", t.id), t);
+          totalPushed++;
+        }
+      }
+
+      // 9. Posts
+      const posts = this.getPosts();
+      for (const p of posts) {
+        if (p && p.id) {
+          await setDoc(doc(db, "posts", p.id), p);
+          totalPushed++;
+        }
+      }
+
+      // 10. Journal
+      const journal = this.getJournalPosts();
+      for (const j of journal) {
+        if (j && j.id) {
+          await setDoc(doc(db, "journal", j.id), j);
+          totalPushed++;
+        }
+      }
+
+      return { success: true, count: totalPushed };
+    } catch (err: any) {
+      console.warn('Error pushing data to Firestore:', err);
+      return { success: false, count: totalPushed };
     }
   }
 };

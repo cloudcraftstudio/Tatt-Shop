@@ -51,10 +51,14 @@ export function getLocalTikTokConfig(): StoredLocalConfig {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_CONFIG_KEY) : null;
     if (raw) {
       const parsed = JSON.parse(raw);
+      const cleanUri =
+        parsed.redirectUri && !parsed.redirectUri.includes('run.app')
+          ? parsed.redirectUri
+          : DEFAULT_STUDIO_REDIRECT_URI;
       return {
         clientKey: parsed.clientKey || DEFAULT_STUDIO_CLIENT_KEY,
         clientSecret: parsed.clientSecret || DEFAULT_STUDIO_CLIENT_SECRET,
-        redirectUri: parsed.redirectUri || DEFAULT_STUDIO_REDIRECT_URI,
+        redirectUri: cleanUri,
         configured: Boolean(parsed.configured ?? true),
         updatedAt: parsed.updatedAt
       };
@@ -147,7 +151,14 @@ export const tiktokService = {
       serverData.hasClientSecret || (local.clientSecret && local.clientSecret.length > 0)
     );
     const isConfigured = Boolean(serverData.configured || (hasClientKey && hasClientSecret));
-    const effectiveRedirect = serverData.redirectUri || local.redirectUri || DEFAULT_STUDIO_REDIRECT_URI;
+    const rawServerRedirect = serverData.redirectUri;
+    const rawLocalRedirect = local.redirectUri;
+    const effectiveRedirect =
+      (rawServerRedirect && !rawServerRedirect.includes('run.app'))
+        ? rawServerRedirect
+        : (rawLocalRedirect && !rawLocalRedirect.includes('run.app'))
+          ? rawLocalRedirect
+          : DEFAULT_STUDIO_REDIRECT_URI;
     const isConnected = Boolean(serverData.isConnected || isConnectedLocally);
     const effectiveUser = serverData.user || sessionUser;
 

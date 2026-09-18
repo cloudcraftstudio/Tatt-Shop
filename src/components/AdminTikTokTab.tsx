@@ -78,15 +78,15 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
   const [manualCaption, setManualCaption] = useState('');
 
   // Determine standard redirect URI (defaults to the official custom domain)
-  const computedRedirectUri = typeof window !== 'undefined'
-    ? (window.location.hostname === 'lightsouttattoo.site'
-        ? 'https://lightsouttattoo.site/oauth/callback'
-        : `${window.location.origin}/oauth/callback`)
-    : DEFAULT_STUDIO_REDIRECT_URI;
+  const computedRedirectUri = DEFAULT_STUDIO_REDIRECT_URI;
 
-  const [redirectUriInput, setRedirectUriInput] = useState<string>(
-    initialLocal.redirectUri || DEFAULT_STUDIO_REDIRECT_URI
-  );
+  const [redirectUriInput, setRedirectUriInput] = useState<string>(() => {
+    const raw = initialLocal.redirectUri;
+    if (raw && !raw.includes('run.app')) {
+      return raw;
+    }
+    return DEFAULT_STUDIO_REDIRECT_URI;
+  });
 
   // Quick fill official studio credentials
   const handleFillStudioCredentials = () => {
@@ -107,9 +107,9 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
       } else if (!clientKeyInput) {
         setClientKeyInput(DEFAULT_STUDIO_CLIENT_KEY);
       }
-      if (data.redirectUri) {
+      if (data.redirectUri && !data.redirectUri.includes('run.app')) {
         setRedirectUriInput(data.redirectUri);
-      } else if (!redirectUriInput) {
+      } else if (!redirectUriInput || redirectUriInput.includes('run.app')) {
         setRedirectUriInput(DEFAULT_STUDIO_REDIRECT_URI);
       }
     } catch (err) {
@@ -290,7 +290,8 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
 
   // Copy Redirect URI
   const handleCopyRedirect = () => {
-    const uri = status?.redirectUri || computedRedirectUri;
+    const candidate = redirectUriInput || status?.redirectUri || computedRedirectUri;
+    const uri = candidate && !candidate.includes('run.app') ? candidate : DEFAULT_STUDIO_REDIRECT_URI;
     navigator.clipboard.writeText(uri);
     setCopiedRedirect(true);
     setTimeout(() => setCopiedRedirect(false), 2000);
@@ -476,7 +477,11 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
                 <Link2 className="w-4 h-4 text-cyan-400 shrink-0" />
                 <span className="text-gray-400 text-xs">Studio Redirect URI:</span>
                 <code className="text-cyan-300 text-xs font-mono break-all">
-                  {status?.redirectUri || computedRedirectUri}
+                  {(redirectUriInput && !redirectUriInput.includes('run.app'))
+                    ? redirectUriInput
+                    : (status?.redirectUri && !status.redirectUri.includes('run.app'))
+                      ? status.redirectUri
+                      : DEFAULT_STUDIO_REDIRECT_URI}
                 </code>
               </div>
               <button
@@ -645,58 +650,53 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
                   Must match the exact URL registered in your TikTok Developer Portal.
                 </p>
 
-                {/* Quick Presets */}
-                <div className="mt-2 space-y-1">
-                  <span className="text-[10px] font-mono text-gray-400">Quick Presets (Click to use):</span>
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {/* 3 Registered Production Callbacks */}
+                <div className="mt-3 space-y-1.5">
+                  <span className="text-[10px] font-mono text-cyan-300 font-semibold">
+                    Registered Callback URIs (Only the 3 Production URLs):
+                  </span>
+                  <div className="grid grid-cols-1 gap-1.5 pt-0.5">
                     <button
                       type="button"
                       onClick={() => setRedirectUriInput('https://lightsouttattoo.site/oauth/callback')}
-                      className="px-2.5 py-1 rounded bg-cyan-950/80 border border-cyan-400 text-cyan-300 text-[10px] font-mono transition font-bold shadow-[0_0_8px_rgba(0,240,255,0.2)]"
+                      className={`text-left px-3 py-2 rounded-xl font-mono text-xs transition flex items-center justify-between ${
+                        redirectUriInput === 'https://lightsouttattoo.site/oauth/callback'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                          : 'bg-[#050811] text-gray-400 hover:text-white border border-gray-800'
+                      }`}
                     >
-                      ★ lightsouttattoo.site/oauth/callback (Production)
+                      <span className="truncate">1. https://lightsouttattoo.site/oauth/callback</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-500/30 shrink-0 ml-2 font-bold">
+                        Primary Default
+                      </span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setRedirectUriInput(`${window.location.origin}/oauth/callback`)}
-                      className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
+                      onClick={() => setRedirectUriInput('https://lightsouttattoo.site/auth/callback')}
+                      className={`text-left px-3 py-2 rounded-xl font-mono text-xs transition flex items-center justify-between ${
+                        redirectUriInput === 'https://lightsouttattoo.site/auth/callback'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                          : 'bg-[#050811] text-gray-400 hover:text-white border border-gray-800'
+                      }`}
                     >
-                      Current Origin ({window.location.origin.replace('https://', '')})
+                      <span className="truncate">2. https://lightsouttattoo.site/auth/callback</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700 shrink-0 ml-2">
+                        Auth Alias
+                      </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setRedirectUriInput('https://lightsouttattoo.site/api/tiktok/callback')}
-                      className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
+                      className={`text-left px-3 py-2 rounded-xl font-mono text-xs transition flex items-center justify-between ${
+                        redirectUriInput === 'https://lightsouttattoo.site/api/tiktok/callback'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                          : 'bg-[#050811] text-gray-400 hover:text-white border border-gray-800'
+                      }`}
                     >
-                      lightsouttattoo.site/api/tiktok/callback
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRedirectUriInput('https://ais-dev-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app/oauth/callback')}
-                      className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
-                    >
-                      ais-dev /oauth/callback
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRedirectUriInput('https://ais-dev-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app/api/tiktok/callback')}
-                      className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
-                    >
-                      ais-dev /api/tiktok/callback
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRedirectUriInput('https://ais-pre-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app/oauth/callback')}
-                      className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
-                    >
-                      ais-pre /oauth/callback
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRedirectUriInput('https://ais-pre-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app/api/tiktok/callback')}
-                      className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
-                    >
-                      ais-pre /api/tiktok/callback
+                      <span className="truncate">3. https://lightsouttattoo.site/api/tiktok/callback</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700 shrink-0 ml-2">
+                        Direct API
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -775,8 +775,23 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
 
               <div className="flex items-center justify-between text-xs font-mono">
                 <span className="text-gray-400">Active Redirect URI:</span>
-                <span className="text-cyan-400 truncate max-w-[170px]" title={redirectUriInput || status?.redirectUri || computedRedirectUri}>
-                  {(redirectUriInput || status?.redirectUri || computedRedirectUri).replace('https://', '')}
+                <span
+                  className="text-cyan-400 truncate max-w-[170px]"
+                  title={
+                    (redirectUriInput && !redirectUriInput.includes('run.app'))
+                      ? redirectUriInput
+                      : (status?.redirectUri && !status.redirectUri.includes('run.app'))
+                        ? status.redirectUri
+                        : DEFAULT_STUDIO_REDIRECT_URI
+                  }
+                >
+                  {(
+                    (redirectUriInput && !redirectUriInput.includes('run.app'))
+                      ? redirectUriInput
+                      : (status?.redirectUri && !status.redirectUri.includes('run.app'))
+                        ? status.redirectUri
+                        : DEFAULT_STUDIO_REDIRECT_URI
+                  ).replace('https://', '')}
                 </span>
               </div>
             </div>

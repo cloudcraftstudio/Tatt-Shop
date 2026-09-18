@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Play,
+  Pause,
   Heart,
   MessageCircle,
   Share2,
@@ -28,8 +29,49 @@ export const TikTokReelsSection: React.FC<TikTokReelsSectionProps> = ({
   const [likesMap, setLikesMap] = useState<Record<string, number>>({});
   const [isLikedMap, setIsLikedMap] = useState<Record<string, boolean>>({});
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const currentReel = reels[activeReelIndex] || reels[0];
+
+  // Detect if current reel has direct playable video media (device upload, mp4, webm, blob, data URL)
+  const isDirectVideo = Boolean(
+    currentReel?.videoUrl && (
+      currentReel.videoUrl.startsWith('blob:') ||
+      currentReel.videoUrl.startsWith('data:video') ||
+      currentReel.videoUrl.startsWith('media://') ||
+      currentReel.videoUrl.match(/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i)
+    )
+  );
+
+  // When active reel changes, play new video if direct video
+  useEffect(() => {
+    if (isDirectVideo && videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    }
+  }, [activeReelIndex, isDirectVideo]);
+
+  const togglePlayPause = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+    }
+    setIsMuted(!isMuted);
+  };
 
   const handleLike = (id: string, initialLikes: number) => {
     const isLiked = !!isLikedMap[id];
@@ -98,19 +140,33 @@ export const TikTokReelsSection: React.FC<TikTokReelsSectionProps> = ({
         {/* Featured Reel Player (Portrait Aspect Ratio) - 7 cols */}
         <div className="md:col-span-7 flex justify-center">
           {currentReel && (
-            <div className="relative w-full max-w-[340px] sm:max-w-[380px] aspect-[9/16] rounded-2xl bg-black border-2 border-cyan-400/60 shadow-[0_0_25px_rgba(0,240,255,0.25)] overflow-hidden flex flex-col justify-between p-4 group">
-              {/* Background poster/image representing the reel */}
-              <img
-                src={currentReel.thumbnailUrl}
-                alt={currentReel.caption}
-                className="absolute inset-0 w-full h-full object-cover filter contrast-110 brightness-90 group-hover:scale-105 transition-transform duration-700"
-              />
+            <div className="relative w-full max-w-[340px] sm:max-w-[380px] aspect-[9/16] rounded-2xl bg-black border-2 border-cyan-400/60 shadow-[0_0_25px_rgba(0,240,255,0.25)] overflow-hidden flex flex-col justify-between p-4 group select-none">
+              {/* Media Display: Direct Video or Poster Image */}
+              {isDirectVideo ? (
+                <video
+                  ref={videoRef}
+                  src={currentReel.videoUrl}
+                  poster={currentReel.thumbnailUrl}
+                  playsInline
+                  autoPlay
+                  loop
+                  muted={isMuted}
+                  onClick={togglePlayPause}
+                  className="absolute inset-0 w-full h-full object-cover cursor-pointer"
+                />
+              ) : (
+                <img
+                  src={currentReel.thumbnailUrl}
+                  alt={currentReel.caption}
+                  className="absolute inset-0 w-full h-full object-cover filter contrast-110 brightness-90 group-hover:scale-105 transition-transform duration-700"
+                />
+              )}
 
               {/* Gradient Overlay for Controls Readability */}
               <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/90 pointer-events-none" />
 
               {/* Top Reel Info */}
-              <div className="relative z-10 flex items-center justify-between">
+              <div className="relative z-10 flex items-center justify-between pointer-events-auto">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-cyan-500/30 border border-cyan-400 flex items-center justify-center">
                     <i className="fa-brands fa-tiktok text-cyan-300 text-xs"></i>
@@ -121,26 +177,53 @@ export const TikTokReelsSection: React.FC<TikTokReelsSectionProps> = ({
                   </div>
                 </div>
 
-                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/60 border border-cyan-500/40 text-cyan-300">
-                  {currentReel.duration}
-                </span>
+                <div className="flex items-center gap-2">
+                  {isDirectVideo && (
+                    <button
+                      onClick={toggleMute}
+                      className="p-1.5 rounded-full bg-black/60 border border-cyan-400/40 text-cyan-300 hover:text-white transition"
+                      title={isMuted ? 'Unmute video audio' : 'Mute video audio'}
+                    >
+                      {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />}
+                    </button>
+                  )}
+                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/60 border border-cyan-500/40 text-cyan-300">
+                    {currentReel.duration || '0:30'}
+                  </span>
+                </div>
               </div>
 
-              {/* Center Play Overlay Icon / Watch link */}
-              <div className="relative z-10 flex items-center justify-center my-auto">
-                <a
-                  href={currentReel.videoUrl || currentReel.tiktokUrl || 'https://www.tiktok.com'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-16 h-16 rounded-full bg-cyan-500/30 border-2 border-cyan-300 backdrop-blur-sm flex items-center justify-center text-cyan-200 shadow-[0_0_25px_#00f0ff] hover:scale-110 transition-transform group/play"
-                  title="Watch on TikTok"
-                >
-                  <Play className="w-8 h-8 fill-current ml-1 text-cyan-200 group-hover/play:text-white" />
-                </a>
+              {/* Center Play/Pause Overlay */}
+              <div className="relative z-10 flex items-center justify-center my-auto pointer-events-auto">
+                {isDirectVideo ? (
+                  <button
+                    onClick={togglePlayPause}
+                    className={`w-16 h-16 rounded-full bg-cyan-500/40 border-2 border-cyan-300 backdrop-blur-sm flex items-center justify-center text-cyan-200 shadow-[0_0_25px_#00f0ff] hover:scale-110 transition-all ${
+                      isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'
+                    }`}
+                    title={isPlaying ? 'Pause video' : 'Play video'}
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-8 h-8 fill-current text-cyan-200" />
+                    ) : (
+                      <Play className="w-8 h-8 fill-current ml-1 text-cyan-200" />
+                    )}
+                  </button>
+                ) : (
+                  <a
+                    href={currentReel.videoUrl || currentReel.tiktokUrl || 'https://www.tiktok.com'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-16 h-16 rounded-full bg-cyan-500/30 border-2 border-cyan-300 backdrop-blur-sm flex items-center justify-center text-cyan-200 shadow-[0_0_25px_#00f0ff] hover:scale-110 transition-transform group/play"
+                    title="Watch on TikTok"
+                  >
+                    <Play className="w-8 h-8 fill-current ml-1 text-cyan-200 group-hover/play:text-white" />
+                  </a>
+                )}
               </div>
 
               {/* Right Vertical Action Rail (TikTok Style) */}
-              <div className="absolute right-3 bottom-20 z-20 flex flex-col items-center gap-4">
+              <div className="absolute right-3 bottom-20 z-20 flex flex-col items-center gap-4 pointer-events-auto">
                 {/* Like Button */}
                 <button
                   onClick={() =>
@@ -194,7 +277,7 @@ export const TikTokReelsSection: React.FC<TikTokReelsSectionProps> = ({
               </div>
 
               {/* Bottom Reel Caption & Sound Strip */}
-              <div className="relative z-10 pr-12 text-left">
+              <div className="relative z-10 pr-12 text-left pointer-events-auto">
                 <h4 className="font-heading font-bold text-sm text-white line-clamp-1">
                   {currentReel.title}
                 </h4>
@@ -204,17 +287,28 @@ export const TikTokReelsSection: React.FC<TikTokReelsSectionProps> = ({
 
                 {/* Hashtags */}
                 <div className="flex flex-wrap gap-1 mt-1.5">
-                  {currentReel.hashtags.map(t => (
+                  {(currentReel.hashtags || ['LightsOutTattoo', 'WinchesterVA']).map(t => (
                     <span key={t} className="text-[10px] font-mono text-cyan-300">
                       #{t}
                     </span>
                   ))}
                 </div>
 
-                {/* Sound Track */}
-                <div className="flex items-center gap-2 mt-2 text-[10px] font-mono text-gray-300 bg-black/50 px-2 py-1 rounded-lg w-fit border border-gray-800">
-                  <Volume2 className="w-3 h-3 text-cyan-400 shrink-0" />
-                  <span className="truncate max-w-[200px]">{currentReel.soundTitle}</span>
+                {/* Sound Track / Audio Strip */}
+                <div
+                  onClick={isDirectVideo ? toggleMute : undefined}
+                  className={`flex items-center gap-2 mt-2 text-[10px] font-mono text-gray-300 bg-black/50 px-2 py-1 rounded-lg w-fit border border-gray-800 ${
+                    isDirectVideo ? 'cursor-pointer hover:border-cyan-400' : ''
+                  }`}
+                >
+                  {isMuted && isDirectVideo ? (
+                    <VolumeX className="w-3 h-3 text-gray-400 shrink-0" />
+                  ) : (
+                    <Volume2 className="w-3 h-3 text-cyan-400 shrink-0" />
+                  )}
+                  <span className="truncate max-w-[200px]">
+                    {isDirectVideo ? (isMuted ? 'Muted (Tap to hear sound)' : 'Audio Playing') : (currentReel.soundTitle || 'Original Studio Audio')}
+                  </span>
                 </div>
               </div>
             </div>

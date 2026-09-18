@@ -1,7 +1,0 @@
-# Deployment History Log - Lights Out Tattoo (AWS Lightsail)
-# Format: [UTC Timestamp] [Commit SHA] [Triggered By] - [STATUS]: [Details]
-# ==============================================================================
-[2026-09-18 13:49:47 UTC] [90b18fb] [cloudcraftstudio] - [FAILURE]: SSH deployment failed at step 'skipped' for commit 90b18fb.
-[2026-09-18 13:51:32 UTC] [4395710] [cloudcraftstudio] - [FAILURE]: SSH deployment failed at step 'failure' for commit 4395710.
-[2026-09-18 14:15:34 UTC] [d1b604c] [cloudcraftstudio] - [SUCCESS]: Deployed commit d1b604c to AWS Lightsail (3.219.32.26) and restarted PM2.
-[2026-09-18 21:38:53 UTC] [f4e778a] [cloudcraftstudio] - [SUCCESS]: Deployed commit f4e778a to AWS Lightsail (3.219.32.26) and restarted PM2.

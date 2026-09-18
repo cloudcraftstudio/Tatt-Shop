@@ -179,14 +179,16 @@ function saveStoredToken(tokenData: TikTokStoredToken | null) {
   }
 }
 
+const DEFAULT_STUDIO_CLIENT_KEY = 'aw3x3m18kgf8mzyp';
+const DEFAULT_STUDIO_CLIENT_SECRET = 'XFxwXGJgPF6NxP7bUxZgqzXfUU9xYGW5';
+const DEFAULT_STUDIO_REDIRECT_URI = 'https://lightsouttattoo.site/oauth/callback';
+
 function normalizeRedirectUri(rawUri?: string, req?: express.Request): string {
   let uri = (rawUri || '').trim();
 
-  // If no uri provided, construct from request host or fallback
-  if (!uri) {
-    const rawHost = ((req?.headers['x-forwarded-host'] as string)?.split(',')[0].trim()) || req?.headers.host || '';
-    const host = rawHost.includes('run.app') ? rawHost.split(':')[0] : (rawHost || 'ais-dev-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app');
-    uri = `https://${host}/oauth/callback`;
+  // If no uri provided or legacy run.app uri detected, fallback to standard production URI
+  if (!uri || uri.includes('run.app')) {
+    uri = DEFAULT_STUDIO_REDIRECT_URI;
   }
 
   try {
@@ -207,13 +209,9 @@ function normalizeRedirectUri(rawUri?: string, req?: express.Request): string {
     }
     return parsed.toString();
   } catch (e) {
-    return uri || 'https://ais-dev-rigzdibvuat6tjvdifupqh-473048529424.us-east1.run.app/oauth/callback';
+    return DEFAULT_STUDIO_REDIRECT_URI;
   }
 }
-
-const DEFAULT_STUDIO_CLIENT_KEY = 'aw3x3m18kgf8mzyp';
-const DEFAULT_STUDIO_CLIENT_SECRET = 'XFxwXGJgPF6NxP7bUxZgqzXfUU9xYGW5';
-const DEFAULT_STUDIO_REDIRECT_URI = 'https://lightsouttattoo.site/oauth/callback';
 
 function getEffectiveCredentials(req?: express.Request) {
   const stored = getStoredConfig();
