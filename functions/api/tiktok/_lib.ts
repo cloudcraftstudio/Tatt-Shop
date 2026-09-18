@@ -246,6 +246,10 @@ export async function saveCredentialsToFirestore(
   }
 }
 
+export const DEFAULT_STUDIO_CLIENT_KEY = 'aw3x3m18kgf8mzyp';
+export const DEFAULT_STUDIO_CLIENT_SECRET = 'XFxwXGJgPF6NxP7bUxZgqzXfUU9xYGW5';
+export const DEFAULT_STUDIO_REDIRECT_URI = 'https://lightsouttattoo.site/oauth/callback';
+
 /**
  * Read TikTok credentials from Firestore or fallback store, decrypting secrets.
  */
@@ -301,6 +305,17 @@ export async function getCredentialsFromFirestore(
     } else if (!clientSecret && docData.clientSecret) {
       clientSecret = docData.clientSecret;
     }
+  }
+
+  // Default to official Lights Out Tattoo studio credentials if not yet set
+  if (!clientKey) {
+    clientKey = DEFAULT_STUDIO_CLIENT_KEY;
+  }
+  if (!clientSecret) {
+    clientSecret = DEFAULT_STUDIO_CLIENT_SECRET;
+  }
+  if (!redirectUri) {
+    redirectUri = DEFAULT_STUDIO_REDIRECT_URI;
   }
 
   return {

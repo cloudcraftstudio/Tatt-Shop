@@ -211,11 +211,15 @@ function normalizeRedirectUri(rawUri?: string, req?: express.Request): string {
   }
 }
 
+const DEFAULT_STUDIO_CLIENT_KEY = 'aw3x3m18kgf8mzyp';
+const DEFAULT_STUDIO_CLIENT_SECRET = 'XFxwXGJgPF6NxP7bUxZgqzXfUU9xYGW5';
+const DEFAULT_STUDIO_REDIRECT_URI = 'https://lightsouttattoo.site/oauth/callback';
+
 function getEffectiveCredentials(req?: express.Request) {
   const stored = getStoredConfig();
-  const clientKey = (process.env.TIKTOK_CLIENT_KEY || stored.clientKey || '').trim();
-  const clientSecret = (process.env.TIKTOK_CLIENT_SECRET || stored.clientSecret || '').trim();
-  const rawRedirect = (process.env.TIKTOK_REDIRECT_URI || stored.redirectUri || '').trim();
+  const clientKey = (process.env.TIKTOK_CLIENT_KEY || stored.clientKey || DEFAULT_STUDIO_CLIENT_KEY).trim();
+  const clientSecret = (process.env.TIKTOK_CLIENT_SECRET || stored.clientSecret || DEFAULT_STUDIO_CLIENT_SECRET).trim();
+  const rawRedirect = (process.env.TIKTOK_REDIRECT_URI || stored.redirectUri || DEFAULT_STUDIO_REDIRECT_URI).trim();
   const redirectUri = normalizeRedirectUri(rawRedirect, req);
 
   return { clientKey, clientSecret, redirectUri, configuredRedirectUri: rawRedirect };
@@ -306,7 +310,7 @@ app.post('/api/s3/presigned-url', async (req, res) => {
 });
 
 // TikTok Status & Configuration
-app.get('/api/tiktok/status', (req, res) => {
+app.get(['/api/tiktok/status', '/api/tiktok/status.js'], (req, res) => {
   const { clientKey, clientSecret, redirectUri } = getEffectiveCredentials(req);
   const token = getStoredToken();
   const hasKey = Boolean(clientKey);
@@ -327,7 +331,7 @@ app.get('/api/tiktok/status', (req, res) => {
 });
 
 // GET TikTok Configuration
-app.get('/api/tiktok/config', (req, res) => {
+app.get(['/api/tiktok/config', '/api/tiktok/config.js'], (req, res) => {
   const { clientKey, clientSecret, redirectUri } = getEffectiveCredentials(req);
   const hasKey = Boolean(clientKey);
   const hasSecret = Boolean(clientSecret);
@@ -342,7 +346,7 @@ app.get('/api/tiktok/config', (req, res) => {
 });
 
 // Update TikTok Client Key & Secret
-app.post('/api/tiktok/config', (req, res) => {
+app.post(['/api/tiktok/config', '/api/tiktok/config.js'], (req, res) => {
   try {
     const { clientKey, clientSecret, redirectUri } = req.body || {};
     const current = getStoredConfig();
@@ -373,7 +377,7 @@ app.post('/api/tiktok/config', (req, res) => {
 });
 
 // Get TikTok OAuth Authorization URL
-app.get('/api/tiktok/auth-url', (req, res) => {
+app.get(['/api/tiktok/auth-url', '/api/tiktok/auth-url.js'], (req, res) => {
   const { clientKey, clientSecret, redirectUri: configuredUri } = getEffectiveCredentials(req);
   const clientRedirectUri = (req.query.redirectUri as string)?.trim();
   const returnUrl = (req.query.returnUrl as string)?.trim();
@@ -597,7 +601,7 @@ app.get(['/oauth/callback', '/auth/callback', '/api/tiktok/callback'], async (re
 });
 
 // Fetch Live TikTok Videos using Stored Access Token
-app.get('/api/tiktok/videos', async (req, res) => {
+app.get(['/api/tiktok/videos', '/api/tiktok/videos.js'], async (req, res) => {
   const token = getStoredToken();
   const { clientKey, clientSecret } = getEffectiveCredentials(req);
 
@@ -701,13 +705,13 @@ app.get('/api/tiktok/videos', async (req, res) => {
 });
 
 // Disconnect TikTok Account
-app.post('/api/tiktok/disconnect', (req, res) => {
+app.post(['/api/tiktok/disconnect', '/api/tiktok/disconnect.js'], (req, res) => {
   saveStoredToken(null);
   res.json({ success: true, message: 'TikTok account disconnected.' });
 });
 
 // TikTok Content Posting API: Publish / Upload Video to TikTok
-app.post('/api/tiktok/publish-video', async (req, res) => {
+app.post(['/api/tiktok/publish-video', '/api/tiktok/publish-video.js'], async (req, res) => {
   try {
     let token = getStoredToken();
     if (!token || !token.accessToken) {

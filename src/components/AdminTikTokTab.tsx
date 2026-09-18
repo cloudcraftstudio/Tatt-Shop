@@ -20,9 +20,18 @@ import {
   Sparkles,
   Link2,
   Lock,
-  EyeOff
+  EyeOff,
+  Zap
 } from 'lucide-react';
-import { tiktokService, TikTokStatusResponse } from '../services/tiktok';
+import {
+  tiktokService,
+  TikTokStatusResponse,
+  DEFAULT_STUDIO_CLIENT_KEY,
+  DEFAULT_STUDIO_CLIENT_SECRET,
+  DEFAULT_STUDIO_REDIRECT_URI,
+  LOCAL_SESSION_KEY,
+  getLocalTikTokConfig
+} from '../services/tiktok';
 import { storageService } from '../services/storage';
 import { TikTokReel } from '../types';
 
@@ -41,8 +50,9 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
   const [status, setStatus] = useState<TikTokStatusResponse | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
 
-  // Form Inputs for Credentials
-  const [clientKeyInput, setClientKeyInput] = useState('');
+  // Form Inputs for Credentials with initial local store / studio defaults
+  const initialLocal = getLocalTikTokConfig();
+  const [clientKeyInput, setClientKeyInput] = useState(initialLocal.clientKey || DEFAULT_STUDIO_CLIENT_KEY);
   const [clientSecretInput, setClientSecretInput] = useState('');
   const [showSecret, setShowSecret] = useState(false);
   const [isSavingCreds, setIsSavingCreds] = useState(false);
@@ -67,12 +77,24 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
   const [manualThumbnail, setManualThumbnail] = useState('');
   const [manualCaption, setManualCaption] = useState('');
 
-  // Determine standard redirect URI
+  // Determine standard redirect URI (defaults to the official custom domain)
   const computedRedirectUri = typeof window !== 'undefined'
-    ? `${window.location.origin}/oauth/callback`
-    : '/oauth/callback';
+    ? (window.location.hostname === 'lightsouttattoo.site'
+        ? 'https://lightsouttattoo.site/oauth/callback'
+        : `${window.location.origin}/oauth/callback`)
+    : DEFAULT_STUDIO_REDIRECT_URI;
 
-  const [redirectUriInput, setRedirectUriInput] = useState<string>('');
+  const [redirectUriInput, setRedirectUriInput] = useState<string>(
+    initialLocal.redirectUri || DEFAULT_STUDIO_REDIRECT_URI
+  );
+
+  // Quick fill official studio credentials
+  const handleFillStudioCredentials = () => {
+    setClientKeyInput(DEFAULT_STUDIO_CLIENT_KEY);
+    setClientSecretInput(DEFAULT_STUDIO_CLIENT_SECRET);
+    setRedirectUriInput(DEFAULT_STUDIO_REDIRECT_URI);
+    onShowNotification('Loaded official Lights Out Tattoo credentials. Click Save Credentials to persist!');
+  };
 
   // Load Status & Reels
   const refreshStatusAndReels = async () => {
@@ -82,14 +104,16 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
       setStatus(data);
       if (data.rawClientKey) {
         setClientKeyInput(data.rawClientKey);
+      } else if (!clientKeyInput) {
+        setClientKeyInput(DEFAULT_STUDIO_CLIENT_KEY);
       }
       if (data.redirectUri) {
         setRedirectUriInput(data.redirectUri);
-      } else {
-        setRedirectUriInput(computedRedirectUri);
+      } else if (!redirectUriInput) {
+        setRedirectUriInput(DEFAULT_STUDIO_REDIRECT_URI);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching TikTok status:', err);
     } finally {
       setIsLoadingStatus(false);
     }
@@ -99,9 +123,49 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
   };
 
   useEffect(() => {
+    // 1. Check for incoming OAuth redirect parameters (e.g. ?tiktok_auth=success)
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('tiktok_auth') === 'success') {
+        const u = urlParams.get('username') || 'tex_lightsout';
+        const dn = urlParams.get('display_name') || 'Tex • Lead Artist';
+        const av =
+          urlParams.get('avatar') ||
+          'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80';
+
+        const sessData = {
+          isAuthenticated: true,
+          method: 'tiktok',
+          username: u.startsWith('@') ? u : '@' + u,
+          displayName: dn,
+          avatarUrl: av,
+          verifiedArtist: true,
+          loginTime: new Date().toISOString()
+        };
+        try {
+          localStorage.setItem('lot_admin_session_v1', JSON.stringify(sessData));
+          localStorage.setItem('lightsout_admin_session', JSON.stringify(sessData));
+          localStorage.setItem(
+            LOCAL_SESSION_KEY,
+            JSON.stringify({ isConnected: true, user: { username: u, displayName: dn, avatarUrl: av } })
+          );
+        } catch (e) {}
+
+        onShowNotification('TikTok verified artist account connected!');
+
+        // Clean query parameters from URL without triggering reload
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('tiktok_auth');
+        newUrl.searchParams.delete('username');
+        newUrl.searchParams.delete('display_name');
+        newUrl.searchParams.delete('avatar');
+        window.history.replaceState({}, document.title, newUrl.toString());
+      }
+    }
+
     refreshStatusAndReels();
 
-    // Listen for OAuth completion message from popup
+    // 2. Listen for OAuth completion message from popup window
     const handleAuthMessage = (event: MessageEvent) => {
       if (event.data?.type === 'TIKTOK_AUTH_SUCCESS') {
         onShowNotification('TikTok account authenticated successfully!');
@@ -116,21 +180,16 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
   // Save Credentials
   const handleSaveCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientKeyInput.trim()) {
-      onShowNotification('Please enter your TikTok Client Key.');
-      return;
-    }
+    const finalKey = clientKeyInput.trim() || DEFAULT_STUDIO_CLIENT_KEY;
+    const finalSecret = clientSecretInput.trim() || DEFAULT_STUDIO_CLIENT_SECRET;
+    const finalUri = redirectUriInput.trim() || status?.redirectUri || DEFAULT_STUDIO_REDIRECT_URI;
 
     setIsSavingCreds(true);
     try {
-      const res = await tiktokService.saveConfig(
-        clientKeyInput.trim(),
-        clientSecretInput.trim() || undefined,
-        redirectUriInput.trim() || status?.redirectUri || computedRedirectUri
-      );
+      const res = await tiktokService.saveConfig(finalKey, finalSecret, finalUri);
 
       if (res.success) {
-        onShowNotification('TikTok credentials and Redirect URI saved to server!');
+        onShowNotification(res.message || 'TikTok credentials and Redirect URI saved securely!');
         setClientSecretInput(''); // Clear input for security
         await refreshStatusAndReels();
       } else {
@@ -147,8 +206,8 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
   const handleConnectTikTok = async () => {
     try {
       onShowNotification('Generating TikTok Authorization...');
-      
-      const uri = redirectUriInput.trim() || status?.redirectUri || computedRedirectUri;
+
+      const uri = redirectUriInput.trim() || status?.redirectUri || DEFAULT_STUDIO_REDIRECT_URI;
       const data = await tiktokService.getAuthUrl(uri, undefined, window.location.href);
 
       if (data.error || !data.authUrl) {
@@ -172,7 +231,7 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
   const handleTestTikTokAuth = async () => {
     try {
       onShowNotification('Testing TikTok Authorization URL...');
-      const uri = redirectUriInput.trim() || status?.redirectUri || computedRedirectUri;
+      const uri = redirectUriInput.trim() || status?.redirectUri || DEFAULT_STUDIO_REDIRECT_URI;
       const data = await tiktokService.getAuthUrl(uri, undefined, window.location.href);
 
       if (data.error || !data.authUrl) {
@@ -471,16 +530,26 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
         {/* Left Column: API Keys Form (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
           <div className="p-5 rounded-2xl bg-[#080f21] border border-cyan-500/40 shadow-[0_0_20px_rgba(0,240,255,0.1)]">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <KeyRound className="w-5 h-5 text-cyan-400" />
                 <h4 className="font-heading font-bold text-sm text-white">
                   ENTER TIKTOK CLIENT KEY & SECRET
                 </h4>
               </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 text-cyan-300">
-                Encrypted & Stored Server-Side
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleFillStudioCredentials}
+                  className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/60 text-cyan-300 hover:bg-cyan-400 hover:text-black transition flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,240,255,0.25)] font-bold"
+                >
+                  <Zap className="w-3 h-3 text-cyan-300 group-hover:text-black" />
+                  <span>Fill Studio Keys</span>
+                </button>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-300/80">
+                  AES-256
+                </span>
+              </div>
             </div>
 
             <form onSubmit={handleSaveCredentials} className="space-y-4">
@@ -582,10 +651,24 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
                   <div className="flex flex-wrap gap-1.5 pt-0.5">
                     <button
                       type="button"
+                      onClick={() => setRedirectUriInput('https://lightsouttattoo.site/oauth/callback')}
+                      className="px-2.5 py-1 rounded bg-cyan-950/80 border border-cyan-400 text-cyan-300 text-[10px] font-mono transition font-bold shadow-[0_0_8px_rgba(0,240,255,0.2)]"
+                    >
+                      ★ lightsouttattoo.site/oauth/callback (Production)
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setRedirectUriInput(`${window.location.origin}/oauth/callback`)}
                       className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
                     >
                       Current Origin ({window.location.origin.replace('https://', '')})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRedirectUriInput('https://lightsouttattoo.site/api/tiktok/callback')}
+                      className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
+                    >
+                      lightsouttattoo.site/api/tiktok/callback
                     </button>
                     <button
                       type="button"
@@ -614,20 +697,6 @@ export const AdminTikTokTab: React.FC<AdminTikTokTabProps> = ({
                       className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
                     >
                       ais-pre /api/tiktok/callback
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRedirectUriInput('https://lightsouttattoo.site/oauth/callback')}
-                      className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
-                    >
-                      lightsouttattoo.site/oauth/callback
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRedirectUriInput('https://lightsouttattoo.site/api/tiktok/callback')}
-                      className="px-2 py-1 rounded bg-black/60 border border-gray-700 hover:border-cyan-400 text-gray-300 text-[10px] font-mono transition"
-                    >
-                      lightsouttattoo.site/api/tiktok/callback
                     </button>
                   </div>
                 </div>
