@@ -245,7 +245,7 @@ const pendingStates = loadPendingStates();
 
 // API ROUTES
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+  res.json({ status: 'ok', time: new Date().toISOString(), aiStudioWorkspace: true, v: '2026-09-18-v2' });
 });
 
 // Cloudflare R2 / S3 Presigned URL Generator
